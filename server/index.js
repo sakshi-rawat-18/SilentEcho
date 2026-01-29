@@ -25,7 +25,7 @@ mongoose.connect(process.env.MONGO_URI)
 const server = http.createServer(app);
 
 // IMPORT MODELS
-const Mood = require('./models/Mood'); 
+const Mood = require('./models/mood'); 
 const Chat = require('./models/Chat'); 
 
 // INITIALIZE COHERE AI
