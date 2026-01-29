@@ -1,0 +1,634 @@
+/* =========================================
+   1. GLOBAL RESET & BASE STYLES
+   ========================================= */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body, html {
+  height: 100%;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); /* Deep Space Gradient */
+  color: white;
+  overflow: hidden; /* Prevents double scrollbars */
+}
+
+/* Main Wrapper */
+.app-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(103, 232, 249, 0.3);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(103, 232, 249, 0.5);
+}
+
+/* =========================================
+   2. LANDING PAGE
+   ========================================= */
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 60px 40px;
+  text-align: center;
+  color: white;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  animation: floatUp 0.8s ease-out;
+}
+
+.title-glow {
+  color: white !important;
+  text-shadow: 0 0 20px rgba(103, 232, 249, 0.5); /* Cyan Glow */
+  font-size: 2.5rem;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+/* Name Input Box (Glass Pill) */
+.name-input-box {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 15px 25px;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  width: 100%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.name-input-box:focus-within {
+  border-color: #67e8f9;
+  box-shadow: 0 0 20px rgba(103, 232, 249, 0.3);
+  transform: scale(1.02);
+}
+
+.lobby-input {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.1rem;
+  outline: none;
+  width: 100%;
+}
+
+.mini-go-btn {
+  background: #67e8f9;
+  border: none;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mini-go-btn:hover {
+  transform: scale(1.1);
+  background: #fff;
+}
+
+/* =========================================
+   3. LOBBY (Home Hub)
+   ========================================= */
+.lobby-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  text-align: center;
+}
+
+/* Lobby Cards Grid */
+.card-grid {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 1000px;
+  margin-top: 30px;
+}
+
+/* The Animated Lobby Card */
+.lobby-card {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 30px;
+  border-radius: 20px;
+  cursor: pointer;
+  width: 220px;
+  height: 240px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  /* The "Bouncy" Float Animation */
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.lobby-card:hover {
+  transform: translateY(-10px) scale(1.02);
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+.lobby-card:active {
+  transform: scale(0.98);
+}
+
+.lobby-card h3 {
+  margin: 20px 0 10px;
+  font-size: 1.3rem;
+  color: white;
+}
+
+.lobby-card p {
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+/* =========================================
+   4. CHAT ROOM (Glass Panel)
+   ========================================= */
+.glass-panel {
+  background: rgba(26, 26, 46, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  height: 90vh;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.chat-container {
+  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header {
+  padding: 15px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+}
+
+.exit-btn {
+  background: transparent;
+  border: 1px solid #ff6b6b;
+  color: #ff6b6b;
+  padding: 5px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.exit-btn:hover {
+  background: rgba(255, 107, 107, 0.1);
+}
+
+/* Chat Messages */
+.messages-area {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.message-bubble {
+  max-width: 75%;
+  padding: 12px 18px;
+  border-radius: 18px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  position: relative;
+  word-wrap: break-word;
+}
+
+.my-msg {
+  align-self: flex-end;
+  background: #67e8f9; /* Cyan */
+  color: #000;
+  border-bottom-right-radius: 2px;
+}
+
+.their-msg {
+  align-self: flex-start;
+  background: #2d2d44; /* Dark Purple */
+  color: #fff;
+  border-top-left-radius: 2px;
+}
+
+.system-msg {
+  align-self: center;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fbbf24; /* Warning Yellow */
+  font-size: 0.85rem;
+  padding: 5px 15px;
+  border-radius: 20px;
+  margin: 10px 0;
+  text-align: center;
+}
+
+/* Chat Input */
+.chat-input-box {
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  gap: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.chat-input-box input {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 25px;
+  border: none;
+  background: #2d2d44;
+  color: white;
+  outline: none;
+}
+
+.send-btn {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  border: none;
+  background: #67e8f9;
+  color: #000;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+
+.send-btn:hover {
+  transform: scale(1.1);
+}
+
+/* =========================================
+   5. MOOD TRACKER
+   ========================================= */
+.mood-content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.emoji-grid {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.emoji-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 80px;
+  color: white;
+}
+
+.emoji-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-5px);
+}
+
+.emoji-btn.selected {
+  background: rgba(103, 232, 249, 0.2); /* Cyan Tint */
+  border-color: #67e8f9;
+  box-shadow: 0 0 15px rgba(103, 232, 249, 0.3);
+}
+
+.mood-input {
+  width: 100%;
+  height: 100px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 15px;
+  color: white;
+  resize: none;
+  outline: none;
+}
+
+.save-btn {
+  background: #67e8f9;
+  color: #000;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 25px;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: 0.3s;
+  font-weight: bold;
+}
+
+.save-btn:disabled {
+  background: #555;
+  color: #888;
+  cursor: not-allowed;
+}
+
+/* Music Player */
+.music-player-box {
+  width: 100%;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  border-radius: 15px;
+}
+
+.track-grid {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.track-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 8px 15px;
+  border-radius: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s;
+}
+
+.track-btn.playing {
+  background: #c084fc; /* Purple */
+  border-color: #c084fc;
+  box-shadow: 0 0 10px rgba(192, 132, 252, 0.4);
+}
+
+/* =========================================
+   6. WAITING ROOM (RESTORED!) 🟢
+   ========================================= */
+.waiting-container {
+  text-align: center;
+  max-width: 450px;
+  width: 90%;
+  padding: 40px;
+  position: relative;
+  overflow: hidden;
+  /* Card Styling from your screenshot */
+  background: rgba(26, 26, 46, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  margin: 0 auto;
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+  font-size: 3rem;
+  color: #67e8f9;
+}
+
+/* The "Did You Know" Fact Card */
+.fact-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 30px 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+.fact-label {
+  font-size: 0.8rem;
+  color: #a5f3fc;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+  display: block;
+  font-weight: bold;
+}
+
+.fact-text {
+  font-size: 1rem;
+  font-style: italic;
+  color: #e2e8f0;
+  line-height: 1.4;
+  animation: floatUp 0.5s ease-in;
+}
+
+.cancel-btn {
+  background: transparent;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  padding: 10px 30px;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s;
+  position: relative;
+  z-index: 1;
+  font-weight: bold;
+}
+
+.cancel-btn:hover {
+  background: #ef4444;
+  color: white;
+}
+
+/* Incoming Call Toast */
+.incoming-call-toast {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.95);
+  padding: 15px 30px;
+  border-radius: 50px;
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 3000;
+  border: 1px solid #67e8f9;
+  animation: slideDown 0.5s;
+  color: white;
+}
+
+.accept-btn {
+  background: #22c55e;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 20px;
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.reject-btn {
+  background: #ef4444;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 20px;
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+/* =========================================
+   7. MODALS (Crisis & Voice)
+   ========================================= */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+.crisis-card {
+  background: #1a1a2e;
+  border: 1px solid #ef4444;
+  padding: 30px;
+  border-radius: 20px;
+  text-align: center;
+  max-width: 400px;
+  box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+  animation: floatUp 0.3s ease-out;
+}
+
+/* =========================================
+   8. ANIMATIONS
+   ========================================= */
+@keyframes floatUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { top: -100px; opacity: 0; }
+  to { top: 20px; opacity: 1; }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* --- Pulse Ring for Waiting Room --- */
+.pulse-ring {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  border: 2px solid rgba(103, 232, 249, 0.5);
+  animation: pulse 2s infinite;
+  z-index: 0;
+}
+
+@keyframes pulse {
+  0% { width: 100px; height: 100px; opacity: 1; }
+  100% { width: 400px; height: 400px; opacity: 0; }
+}
+/* 🟢 NEW ENTER BUTTON STYLE */
+.enter-btn {
+  background: linear-gradient(90deg, #67e8f9, #a78bfa); /* Cyan -> Purple Gradient */
+  color: #0f172a; /* Dark Text for contrast */
+  font-weight: bold;
+  font-size: 1.1rem;
+  padding: 15px 30px;
+  width: 100%;
+  border: none;
+  border-radius: 50px; /* Fully rounded pill shape */
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(103, 232, 249, 0.3); /* Soft Glow */
+}
+
+/* Hover Effect */
+.enter-btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.02); /* Slight lift */
+  box-shadow: 0 0 25px rgba(103, 232, 249, 0.6); /* Stronger Glow */
+  background: linear-gradient(90deg, #a78bfa, #67e8f9); /* Flip Gradient */
+}
+
+/* Disabled State (Greyed out) */
+.enter-btn:disabled {
+  background: #334155;
+  color: #64748b;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
