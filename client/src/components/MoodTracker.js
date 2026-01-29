@@ -46,7 +46,7 @@ const MoodTracker = () => {
     if (!selectedEmoji) return;
     setStatus("Saving...");
     try {
-      const response = await fetch("http://localhost:5000/api/mood", {
+      const response = await fetch("https://silentecho-eypq.onrender.com/api/mood", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

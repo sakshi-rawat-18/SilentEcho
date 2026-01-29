@@ -16,7 +16,7 @@ const NovaAI = () => {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/chat-history/${username}`);
+        const res = await axios.get(`https://silentecho-eypq.onrender.com/api/chat-history/${username}`);
         const history = res.data.map(msg => ({
           id: msg._id,
           text: msg.message,
@@ -46,12 +46,12 @@ const NovaAI = () => {
     setIsLoading(true);
 
     try {
-      await axios.post('http://localhost:5000/api/ai-chat', {
+      await axios.post('https://silentecho-eypq.onrender.com/api/ai-chat', {
         message: input,
         username: username 
       });
 
-      const historyRes = await axios.get(`http://localhost:5000/api/chat-history/${username}`);
+      const historyRes = await axios.get(`https://silentecho-eypq.onrender.com/api/chat-history/${username}`);
       const history = historyRes.data.map(msg => ({
         id: msg._id,
         text: msg.message,
@@ -70,7 +70,7 @@ const NovaAI = () => {
   const handleDelete = async (id) => {
     setMessages(prev => prev.filter(msg => msg.id !== id));
     try {
-      await axios.delete(`http://localhost:5000/api/chat/${id}`);
+      await axios.delete(`https://silentecho-eypq.onrender.com/api/chat/${id}`);
     } catch (err) {
       console.error("Failed to delete", err);
     }
@@ -84,7 +84,7 @@ const NovaAI = () => {
 
     try {
       setMessages([]);
-      await axios.delete(`http://localhost:5000/api/chat-history/${username}`);
+      await axios.delete(`https://silentecho-eypq.onrender.com/api/chat-history/${username}`);
     } catch (err) {
       alert("Failed to clear chat. Try again.");
     }

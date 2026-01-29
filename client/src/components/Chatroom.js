@@ -9,8 +9,8 @@ import { encryptMessage, decryptMessage } from '../utils/encryption';
 // 🟢 DEPLOYMENT CONFIGURATION
 // Step 1: Deploy Server to Render.
 // Step 2: Copy the URL (e.g., https://silentecho-api.onrender.com)
-// Step 3: Paste it below instead of "http://localhost:5000"
-const BACKEND_URL = "http://localhost:5000"; 
+// Step 3: Paste it below instead of "https://silentecho-eypq.onrender.com"
+const BACKEND_URL = "https://silentecho-eypq.onrender.com"; 
 
 const socket = io.connect(BACKEND_URL);
 

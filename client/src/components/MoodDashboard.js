@@ -10,7 +10,7 @@ const MoodDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/moods')
+    axios.get('https://silentecho-eypq.onrender.com/api/moods')
       .then(res => {
         const formatted = res.data.map(item => ({
           score: item.score,

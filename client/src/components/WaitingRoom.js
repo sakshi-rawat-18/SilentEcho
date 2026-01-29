@@ -6,7 +6,7 @@ import io from 'socket.io-client';
 // 🟢 DEPLOYMENT CONFIGURATION
 // When you deploy your server to Render, paste that URL here!
 // Example: const BACKEND_URL = "https://silentecho-api.onrender.com";
-const BACKEND_URL = "http://localhost:5000"; 
+const BACKEND_URL = "https://silentecho-eypq.onrender.com"; 
 
 // Connect using the variable
 const socket = io.connect(BACKEND_URL);
