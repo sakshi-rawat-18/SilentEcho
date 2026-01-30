@@ -9,22 +9,16 @@ const { CohereClient } = require("cohere-ai");
 
 const app = express();
 
-// 🟢 FIX: THE "SAFE LIST" - EXACTLY MATCHING YOUR VERCEL URL
-const allowedOrigins = [
-  "https://silent-echo-six.vercel.app",  // Your Vercel App
-  "http://localhost:3000"                  // Your Laptop
-];
-
-// 1. CORS for API Routes (Express)
+// 🟢 NUCLEAR FIX: Allow "*" (Everyone) and DISABLE credentials
 app.use(cors({
-  origin: allowedOrigins,
+  origin: "*", 
   methods: ["GET", "POST", "DELETE", "PUT"],
-  credentials: true // 🟢 CRITICAL: Allows cookies/headers for the connection
+  credentials: false // 🟢 MUST BE FALSE when origin is "*"
 }));
 
 app.use(express.json());
 
-// 2. CONNECT TO MONGODB 🍃
+// 1. CONNECT TO MONGODB 🍃
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MONGODB CONNECTED!"))
   .catch((err) => console.log("❌ DB Connection Error:", err));
@@ -114,13 +108,13 @@ app.delete('/api/chat-history/:username', async (req, res) => {
   }
 });
 
-// 3. SETUP SOCKET.IO 🔌
-// 🟢 FIX: Apply the EXACT SAME CORS rules to the Socket
+// 2. SETUP SOCKET.IO 🔌
+// 🟢 NUCLEAR FIX: Apply "*" here too
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins, // 🟢 Must match the list above
+    origin: "*", // Allow anyone
     methods: ["GET", "POST"],
-    credentials: true // 🟢 CRITICAL
+    credentials: false // 🟢 MUST BE FALSE
   },
 });
 

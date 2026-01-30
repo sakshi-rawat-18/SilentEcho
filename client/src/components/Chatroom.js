@@ -9,12 +9,13 @@ import '../App.css';
 
 const BACKEND_URL = "https://silent-echo-backend.onrender.com"; 
 
-// 🟢 FIX: Clean connection logic to match Server's new CORS rules
+// 🟢 FIX: REMOVE 'withCredentials' and use default transports
 const socket = io.connect(BACKEND_URL, {
-    withCredentials: true, // This allows the "Safe List" check to pass
+    // withCredentials: true,  <-- DELETED THIS (Must not use with origin *)
     autoConnect: true,
     reconnection: true,
-    reconnectionAttempts: 20
+    reconnectionAttempts: 20,
+    transports: ['websocket', 'polling'] // Try fastest first
 });
 
 const ChatRoom = () => {
@@ -30,11 +31,11 @@ const ChatRoom = () => {
   const [partnerLeft, setPartnerLeft] = useState(false);
   const [showCrisisModal, setShowCrisisModal] = useState(false);
   
-  // 🟢 Connection State
+  // Connection State
   const [isConnected, setIsConnected] = useState(socket.connected); 
   const [connectError, setConnectError] = useState(""); 
 
-  // 📞 CALL STATE
+  // Call State
   const [isInCall, setIsInCall] = useState(false);
   const [isInitiator, setIsInitiator] = useState(false);
   const [incomingCall, setIncomingCall] = useState(false);
@@ -49,7 +50,7 @@ const ChatRoom = () => {
   }, [messages]);
 
   useEffect(() => {
-    // 🟢 Debug: Force connect on mount
+    // Force connect on mount
     if (!socket.connected) socket.connect();
 
     socket.on('connect', () => {
@@ -141,14 +142,12 @@ const ChatRoom = () => {
     <div className="chat-container glass-panel">
       {showCrisisModal && <CrisisModal onClose={() => setShowCrisisModal(false)} />}
 
-      {/* 🟢 FULL SCREEN CALL WRAPPER */}
       {isInCall && (
         <div className="voice-call-wrapper">
             <VoiceCall socket={socket} roomId={roomId} isInitiator={isInitiator} callerSignal={callerSignal} onClose={() => endCall(true)} />
         </div>
       )}
 
-      {/* 📞 INCOMING CALL POPUP */}
       {incomingCall && !isInCall && (
         <div className="incoming-call-toast">
             <span>📞 Incoming Call from <b>{partnerName}</b>...</span>
@@ -165,7 +164,6 @@ const ChatRoom = () => {
            <div>
                <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>{partnerName}</span>
                
-               {/* 🟢 STATUS & ERROR DISPLAY */}
                <div style={{fontSize:'0.7rem', color: isConnected ? '#4ade80' : '#f87171', display: 'flex', alignItems:'center', gap:'5px'}}>
                    <FaCircle size={8} /> 
                    {isConnected ? "Online" : "Disconnected"} 
