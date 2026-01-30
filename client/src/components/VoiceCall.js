@@ -1,111 +1,113 @@
 import React, { useEffect, useState, useRef } from 'react';
-import Peer from 'peerjs';
-import { FaPhoneSlash, FaMicrophone, FaMicrophoneSlash, FaVolumeUp } from 'react-icons/fa';
+import Peer from 'simple-peer';
+import { FaPhoneSlash, FaMicrophone, FaMicrophoneSlash } from 'react-icons/fa';
+import '../App.css'; // Make sure your CSS is imported
 
-const VoiceCall = ({ socket, roomId, onClose, isInitiator, callerSignal }) => {
-  // 🟢 REMOVED unused 'peerId' state to fix the warning
-  const [callStatus, setCallStatus] = useState(isInitiator ? 'Calling...' : 'Connecting...');
+const VoiceCall = ({ socket, roomId, isInitiator, callerSignal, onClose }) => {
+  const [stream, setStream] = useState(null);
+  const [callAccepted, setCallAccepted] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   
-  const localAudioRef = useRef(null);
-  const remoteAudioRef = useRef(null);
-  const peerInstance = useRef(null);
-  const myStreamRef = useRef(null);
+  const myVideo = useRef();
+  const userVideo = useRef();
+  const connectionRef = useRef();
 
   useEffect(() => {
-    const startCall = async () => {
-      try {
-        // 1. Get Microphone Access
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        myStreamRef.current = stream;
-        
-        if (localAudioRef.current) {
-          localAudioRef.current.srcObject = stream;
-        }
+    navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+      .then((currentStream) => {
+        setStream(currentStream);
+        if (myVideo.current) myVideo.current.srcObject = currentStream;
 
-        // 2. Initialize Peer
-        const peer = new Peer();
-        peerInstance.current = peer;
+        if (isInitiator) {
+          // 🟢 INITIATOR: Create the peer and send signal to ROOM
+          const peer = new Peer({ initiator: true, trickle: false, stream: currentStream });
 
-        peer.on('open', (id) => {
-          // We don't need to save peerId to state since we use 'id' directly here
-          if (isInitiator) {
-            // I am calling -> Send my ID to the partner
-            socket.emit("call_user", { roomId, signal: id });
-          } else if (callerSignal) {
-            // I am answering -> Call the Initiator immediately!
-            console.log("📞 Answering call from:", callerSignal);
-            const call = peer.call(callerSignal, stream);
-            
-            call.on('stream', (userVideoStream) => {
-              if (remoteAudioRef.current) {
-                remoteAudioRef.current.srcObject = userVideoStream;
-                remoteAudioRef.current.play();
-              }
-              setCallStatus("Connected 00:01");
+          peer.on('signal', (data) => {
+            // 🟢 CRITICAL FIX: Send 'roomId' so the server knows where to broadcast!
+            socket.emit("call_user", {
+                roomId: roomId, // <--- THIS WAS MISSING
+                signalData: data,
+                from: socket.id 
             });
-          }
-        });
-
-        // 3. Handle Incoming Connection (For the Initiator)
-        peer.on('call', (call) => {
-          console.log("📞 Someone is connecting to me...");
-          call.answer(stream); // Answer with my stream
-          call.on('stream', (userVideoStream) => {
-            if (remoteAudioRef.current) {
-              remoteAudioRef.current.srcObject = userVideoStream;
-              remoteAudioRef.current.play(); 
-            }
-            setCallStatus("Connected 00:01");
           });
-        });
 
-      } catch (err) {
-        console.error("Microphone error:", err);
-        setCallStatus("Error: No Microphone Found");
-      }
-    };
+          peer.on('stream', (currentStream) => {
+            if (userVideo.current) userVideo.current.srcObject = currentStream;
+          });
 
-    startCall();
+          socket.on("call_accepted", (signal) => {
+             setCallAccepted(true);
+             peer.signal(signal);
+          });
 
-    return () => {
-      if (peerInstance.current) peerInstance.current.destroy();
-      if (myStreamRef.current) myStreamRef.current.getTracks().forEach(track => track.stop());
-    };
-    // eslint-disable-next-line
-  }, [roomId, isInitiator, callerSignal]); // Removed socket from dependency to prevent re-loops
+          connectionRef.current = peer;
+
+        } else {
+          // 🟢 RECEIVER: Answer the call
+          const peer = new Peer({ initiator: false, trickle: false, stream: currentStream });
+
+          peer.on('signal', (data) => {
+            socket.emit("answer_call", { 
+                signal: data, 
+                roomId: roomId // <--- THIS WAS MISSING
+            });
+          });
+
+          peer.on('stream', (currentStream) => {
+            if (userVideo.current) userVideo.current.srcObject = currentStream;
+          });
+
+          // If we have an incoming signal, accept it
+          if (callerSignal) {
+              peer.signal(callerSignal);
+          }
+          
+          connectionRef.current = peer;
+        }
+      });
+      
+      // Cleanup when component closes
+      return () => {
+          socket.off("call_accepted");
+          if(connectionRef.current) connectionRef.current.destroy();
+      };
+      // eslint-disable-next-line
+  }, []);
 
   const toggleMute = () => {
-    if (myStreamRef.current) {
-      const audioTrack = myStreamRef.current.getAudioTracks()[0];
-      audioTrack.enabled = !audioTrack.enabled;
-      setIsMuted(!audioTrack.enabled);
-    }
+      if (stream) {
+          stream.getAudioTracks()[0].enabled = !stream.getAudioTracks()[0].enabled;
+          setIsMuted(!isMuted);
+      }
   };
 
   return (
-    <div className="voice-modal-overlay">
-      <div className="voice-card">
-        <div className="caller-icon-large">
-           <FaVolumeUp className="pulse-ring" />
-        </div>
-        
-        <h3>{callStatus}</h3>
-        <p>Silent Echo Secure Line</p>
-
-        {/* Hidden Audio Elements */}
-        <audio ref={localAudioRef} muted autoPlay /> 
-        <audio ref={remoteAudioRef} autoPlay />
-
-        <div className="call-controls">
-          <button className={`control-btn ${isMuted ? 'muted' : ''}`} onClick={toggleMute}>
-            {isMuted ? <FaMicrophoneSlash /> : <FaMicrophone />}
-          </button>
+    <div className="video-container">
+      <div className="video-box">
+          {/* Audio elements are hidden but active */}
+          <audio playsInline muted ref={myVideo} autoPlay />
+          <audio playsInline ref={userVideo} autoPlay />
           
-          <button className="control-btn hangup" onClick={onClose}>
-            <FaPhoneSlash />
-          </button>
-        </div>
+          <div className="call-animation">
+             <div className="pulse-ring"></div>
+             <div className="pulse-ring delay"></div>
+             <div className="avatar-circle">
+                {callAccepted ? "🗣️" : "📞"}
+             </div>
+          </div>
+
+          <div className="call-status">
+             {callAccepted ? "Connected" : "Calling..."}
+          </div>
+
+          <div className="call-controls">
+            <button onClick={toggleMute} className={`control-btn ${isMuted ? 'muted' : ''}`}>
+                {isMuted ? <FaMicrophoneSlash /> : <FaMicrophone />}
+            </button>
+            <button onClick={onClose} className="control-btn end-call">
+                <FaPhoneSlash />
+            </button>
+          </div>
       </div>
     </div>
   );
