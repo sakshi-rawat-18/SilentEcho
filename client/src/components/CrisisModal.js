@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FaHeartbeat, FaPhoneAlt, FaTimes } from 'react-icons/fa';
-import './CrisisModal.css'; // Make sure to create/update this CSS file!
+import './App.css'; // Make sure to create/update this CSS file!
 
 const CrisisModal = ({ onClose }) => {
   const [isBreathing, setIsBreathing] = useState(false);
