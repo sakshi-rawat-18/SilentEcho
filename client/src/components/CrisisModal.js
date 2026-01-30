@@ -1,28 +1,29 @@
 import React, { useState } from 'react';
 import { FaHeartbeat, FaPhoneAlt, FaTimes } from 'react-icons/fa';
+import './CrisisModal.css'; // Make sure to create/update this CSS file!
 
 const CrisisModal = ({ onClose }) => {
-  const [isBreathing, setIsBreathing] = useState(false); // 🆕 New State
+  const [isBreathing, setIsBreathing] = useState(false);
 
   return (
     <div className="modal-overlay">
       <div className="crisis-card">
         
-        {/* 🆕 LOGIC: If Breathing, show Circle. If not, show Help. */}
         {isBreathing ? (
+          /* --- BREATHING EXERCISE VIEW --- */
           <div className="breathing-container">
-            <h2 style={{color: '#fff', marginBottom:'20px'}}>Breathe In... Breathe Out...</h2>
+            <h2 className="breathing-text">Breathe In... Breathe Out...</h2>
             <div className="breathing-circle"></div>
-            <button className="close-crisis-btn" onClick={() => setIsBreathing(false)} style={{marginTop:'30px'}}>
-               Stop Exercise
+            <button className="glow-button" onClick={() => setIsBreathing(false)}>
+                Stop Exercise
             </button>
           </div>
         ) : (
-          // --- NORMAL CRISIS VIEW ---
+          /* --- NORMAL CRISIS VIEW --- */
           <>
             <div className="crisis-header">
               <FaHeartbeat size={40} color="#ef4444" className="pulse-icon" />
-              <h2 style={{color: '#fff'}}>You Are Not Alone</h2>
+              <h2 className="modal-title">You Are Not Alone</h2>
             </div>
             
             <p className="crisis-text">
@@ -33,20 +34,24 @@ const CrisisModal = ({ onClose }) => {
             <div className="helpline-box">
               <div className="helpline-row">
                 <span>🇮🇳 India Suicide Prevention:</span>
-                <a href="tel:9820466726" className="phone-link"><FaPhoneAlt /> 9820466726</a>
+                <a href="tel:9820466726" className="phone-link glow-text">
+                  <FaPhoneAlt /> 9820466726
+                </a>
               </div>
               <div className="helpline-row">
                 <span>🌍 Global Emergency:</span>
-                <a href="tel:112" className="phone-link"><FaPhoneAlt /> 112</a>
+                <a href="tel:112" className="phone-link glow-text">
+                  <FaPhoneAlt /> 112
+                </a>
               </div>
             </div>
 
             <div className="crisis-actions">
               <button className="breathing-btn" onClick={() => setIsBreathing(true)}>
-                 🌬️ Take a Deep Breath
+                 🌬️ Deep Breath
               </button>
               <button className="close-crisis-btn" onClick={onClose}>
-                <FaTimes /> I'm safe, back to chat
+                <FaTimes /> Back to Chat
               </button>
             </div>
           </>

@@ -694,3 +694,29 @@ body, html {
   background: #5ed3f3; /* Matching your logo colors */
   color: #000;
 }
+/* Styling for the Breathing text */
+.breathing-text {
+  color: #fff;
+  margin-bottom: 20px;
+  font-weight: 300;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+/* Fix for the 'Stop Exercise' button to remove the default white look */
+.glow-button {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #fff !important;
+  padding: 10px 25px !important;
+  border-radius: 50px !important; /* Rounded pill shape */
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  margin-top: 30px;
+}
+
+.glow-button:hover {
+  background: rgba(255, 77, 77, 0.2) !important; /* Soft red glow on hover */
+  border-color: #ff4d4d !important;
+  box-shadow: 0 0 15px rgba(255, 77, 77, 0.4);
+}
