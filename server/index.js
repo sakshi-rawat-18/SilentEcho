@@ -9,21 +9,22 @@ const { CohereClient } = require("cohere-ai");
 
 const app = express();
 
-// 🟢 FIX 1: Explicitly allow your Vercel URL and Localhost
+// 🟢 FIX: THE "SAFE LIST" - EXACTLY MATCHING YOUR VERCEL URL
 const allowedOrigins = [
-  "https://silent-echo-six.vercel.app", // Your Vercel App
-  "http://localhost:3000"                 // Your Laptop (Testing)
+  "https://silent-echo-six.vercel.app",  // Your Vercel App
+  "http://localhost:3000"                  // Your Laptop
 ];
 
+// 1. CORS for API Routes (Express)
 app.use(cors({
   origin: allowedOrigins,
   methods: ["GET", "POST", "DELETE", "PUT"],
-  credentials: true
+  credentials: true // 🟢 CRITICAL: Allows cookies/headers for the connection
 }));
 
 app.use(express.json());
 
-// 1. CONNECT TO MONGODB 🍃
+// 2. CONNECT TO MONGODB 🍃
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MONGODB CONNECTED!"))
   .catch((err) => console.log("❌ DB Connection Error:", err));
@@ -40,8 +41,6 @@ const cohere = new CohereClient({
 });
 
 // --- API ROUTES ---
-
-// 1️⃣ MOOD: Save
 app.post('/api/mood', async (req, res) => {
   try {
     const { emoji, note, score } = req.body;
@@ -53,7 +52,6 @@ app.post('/api/mood', async (req, res) => {
   }
 });
 
-// 2️⃣ MOOD: Get All
 app.get('/api/moods', async (req, res) => {
   try {
     const moods = await Mood.find().sort({ timestamp: -1 });
@@ -63,7 +61,6 @@ app.get('/api/moods', async (req, res) => {
   }
 });
 
-// 3️⃣ CHAT: Get History
 app.get('/api/chat-history/:username', async (req, res) => {
   try {
     const { username } = req.params;
@@ -74,7 +71,6 @@ app.get('/api/chat-history/:username', async (req, res) => {
   }
 });
 
-// 4️⃣ AI CHAT: Talk & Save
 app.post('/api/ai-chat', async (req, res) => {
   const { message, username } = req.body;
   try {
@@ -89,10 +85,8 @@ app.post('/api/ai-chat', async (req, res) => {
       temperature: 0.3,
     });
     const botReply = response.text;
-
     const botMsg = new Chat({ user: username || "Guest", message: botReply, sender: "bot" });
     await botMsg.save();
-
     res.json({ reply: botReply });
   } catch (error) {
     console.error("❌ AI Error:", error);
@@ -100,7 +94,6 @@ app.post('/api/ai-chat', async (req, res) => {
   }
 });
 
-// 5️⃣ CHAT: Delete a specific message
 app.delete('/api/chat/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -111,7 +104,6 @@ app.delete('/api/chat/:id', async (req, res) => {
   }
 });
 
-// 6️⃣ CHAT: Clear ENTIRE history
 app.delete('/api/chat-history/:username', async (req, res) => {
   try {
     const { username } = req.params;
@@ -122,13 +114,13 @@ app.delete('/api/chat-history/:username', async (req, res) => {
   }
 });
 
-// 2. SETUP SOCKET.IO 🔌
-// 🟢 FIX 2: Apply the "Safe List" to Socket.io too
+// 3. SETUP SOCKET.IO 🔌
+// 🟢 FIX: Apply the EXACT SAME CORS rules to the Socket
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins, // 🟢 ONLY allow Vercel & Localhost
+    origin: allowedOrigins, // 🟢 Must match the list above
     methods: ["GET", "POST"],
-    credentials: true
+    credentials: true // 🟢 CRITICAL
   },
 });
 
@@ -163,7 +155,6 @@ io.on("connection", (socket) => {
   socket.on("join_room", (roomId) => { socket.join(roomId); });
   socket.on("send_message", (data) => { socket.to(data.room).emit("receive_message", data); });
   
-  // 🟢 WebRTC Signaling (Call Features)
   socket.on("call_user", (data) => { 
       socket.to(data.roomId).emit("call_user", { signal: data.signalData, from: data.from });
   });
