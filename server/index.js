@@ -138,10 +138,14 @@ io.on("connection", (socket) => {
       const roomId = uuidv4();
       const matchSocket = waitingUser.socket;
       const matchName = waitingUser.name;
+      const matchSocketId = matchSocket.id; // Store ID before usage
+      
       matchSocket.join(roomId);
       socket.join(roomId);
-      io.to(matchSocket.id).emit("match_found", { roomId, partnerName: userName });
+      
+      io.to(matchSocketId).emit("match_found", { roomId, partnerName: userName });
       io.to(socket.id).emit("match_found", { roomId, partnerName: matchName });
+      
       waitingUser = null; 
     } else {
       waitingUser = { socket: socket, name: userName };
@@ -152,14 +156,15 @@ io.on("connection", (socket) => {
   socket.on("join_room", (roomId) => { socket.join(roomId); });
   socket.on("send_message", (data) => { socket.to(data.room).emit("receive_message", data); });
   
-  // 🟢 WebRTC Signaling (Call Features)
+  // 🟢 WebRTC Signaling (Call Features) - UPDATED TO USE ROOM ID
   socket.on("call_user", (data) => { 
-      // Forward the signal to the specific room/user
-      socket.to(data.userToCall).emit("call_user", { signal: data.signalData, from: data.from });
+      // 🟢 CHANGE: Broadcast to the ROOM so the partner gets it automatically
+      socket.to(data.roomId).emit("call_user", { signal: data.signalData, from: data.from });
   });
 
   socket.on("answer_call", (data) => {
-      socket.to(data.to).emit("call_accepted", data.signal);
+      // 🟢 CHANGE: Broadcast acceptance to the room
+      socket.to(data.roomId).emit("call_accepted", data.signal);
   });
 
   socket.on("call_ended", (data) => { io.to(data.roomId).emit("call_ended"); });

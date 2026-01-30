@@ -765,3 +765,17 @@ body, html {
     color: #4ade80 !important;
     border: 1px solid #22c55e !important;
 }
+/* 🟢 FIX: Force the call screen to float over EVERYTHING */
+.voice-call-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #0f0f1a;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}

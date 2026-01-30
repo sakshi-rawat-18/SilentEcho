@@ -5,10 +5,9 @@ import io from 'socket.io-client';
 import CrisisModal from './CrisisModal'; 
 import VoiceCall from './VoiceCall'; 
 import { encryptMessage, decryptMessage } from '../utils/encryption';
-import '../App.css'; // Ensure you have this CSS file imported!
+import '../App.css'; // 🟢 Importing App.css from the folder above
 
-// 🟢 IMPORTANT: Replace this with your EXACT Render Backend URL
-// Check your Render Dashboard if you aren't sure. It usually ends in .onrender.com
+// 🟢 YOUR RENDER BACKEND URL
 const BACKEND_URL = "https://silent-echo-backend.onrender.com"; 
 
 const socket = io.connect(BACKEND_URL);
@@ -122,15 +121,17 @@ const ChatRoom = () => {
     <div className="chat-container glass-panel">
       {showCrisisModal && <CrisisModal onClose={() => setShowCrisisModal(false)} />}
 
-      {/* 📞 VOICE CALL MODAL */}
+      {/* 📞 VOICE CALL MODAL - WRAPPED FOR FULL SCREEN */}
       {isInCall && (
-        <VoiceCall 
-           socket={socket} 
-           roomId={roomId} 
-           isInitiator={isInitiator}
-           callerSignal={callerSignal}
-           onClose={() => endCall(true)} 
-        />
+        <div className="voice-call-wrapper">
+            <VoiceCall 
+               socket={socket} 
+               roomId={roomId} 
+               isInitiator={isInitiator}
+               callerSignal={callerSignal}
+               onClose={() => endCall(true)} 
+            />
+        </div>
       )}
 
       {/* 📞 INCOMING CALL POPUP */}
@@ -155,7 +156,6 @@ const ChatRoom = () => {
         </div>
       </div>
       
-      {/* 🟢 THIS CLASS NAME MUST MATCH THE CSS BELOW */}
       <div className="messages-area">
         {messages.map((msg) => (
           <div key={msg.id} className={`message-bubble ${msg.isSystem ? 'system-msg' : (msg.sender === socket.id ? 'my-msg' : 'their-msg')}`}>{msg.text}</div>
