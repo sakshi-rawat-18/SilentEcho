@@ -7,10 +7,17 @@ import VoiceCall from './VoiceCall';
 import { encryptMessage, decryptMessage } from '../utils/encryption';
 import '../App.css'; 
 
+// 🟢 YOUR RENDER BACKEND URL
 const BACKEND_URL = "https://silent-echo-backend.onrender.com"; 
 
-// 🟢 Move socket definition OUTSIDE to keep it stable
-const socket = io.connect(BACKEND_URL);
+// 🟢 NEW: Robust Connection Options to fix "Disconnected" issue
+const socket = io.connect(BACKEND_URL, {
+    transports: ['websocket', 'polling'], // Try both methods
+    reconnection: true,                   // Always try to reconnect
+    reconnectionAttempts: 20,             // Try 20 times
+    reconnectionDelay: 1000,              // Wait 1s between tries
+    autoConnect: true                     // Connect immediately
+});
 
 const ChatRoom = () => {
   const navigate = useNavigate();
@@ -24,7 +31,7 @@ const ChatRoom = () => {
   const [input, setInput] = useState("");
   const [partnerLeft, setPartnerLeft] = useState(false);
   const [showCrisisModal, setShowCrisisModal] = useState(false);
-  const [isConnected, setIsConnected] = useState(socket.connected); // 🟢 Track Connection
+  const [isConnected, setIsConnected] = useState(socket.connected); // Track connection status
   
   // 📞 CALL STATE
   const [isInCall, setIsInCall] = useState(false);
@@ -41,11 +48,16 @@ const ChatRoom = () => {
   }, [messages]);
 
   useEffect(() => {
-    // 🟢 CONNECTION DEBUGGING
+    // 🟢 FORCE CONNECTION ON LOAD
+    if (!socket.connected) {
+        socket.connect();
+    }
+
+    // 🟢 EVENT LISTENERS
     socket.on('connect', () => {
         console.log("✅ Connected to Server:", socket.id);
         setIsConnected(true);
-        if (roomId) socket.emit("join_room", roomId); // Re-join if we reconnect
+        if (roomId) socket.emit("join_room", roomId); 
     });
 
     socket.on('disconnect', () => {
@@ -55,8 +67,10 @@ const ChatRoom = () => {
 
     if (!roomId) { navigate('/lobby'); return; }
     
-    // 🟢 FORCE JOIN IMMEDIATELY
-    socket.emit("join_room", roomId);
+    // Join room if already connected
+    if (socket.connected) {
+        socket.emit("join_room", roomId);
+    }
 
     socket.on("receive_message", (data) => {
       const decryptedText = decryptMessage(data.text);
@@ -126,12 +140,14 @@ const ChatRoom = () => {
     <div className="chat-container glass-panel">
       {showCrisisModal && <CrisisModal onClose={() => setShowCrisisModal(false)} />}
 
+      {/* 🟢 FULL SCREEN CALL WRAPPER */}
       {isInCall && (
         <div className="voice-call-wrapper">
             <VoiceCall socket={socket} roomId={roomId} isInitiator={isInitiator} callerSignal={callerSignal} onClose={() => endCall(true)} />
         </div>
       )}
 
+      {/* 📞 INCOMING CALL POPUP */}
       {incomingCall && !isInCall && (
         <div className="incoming-call-toast">
             <span>📞 Incoming Call from <b>{partnerName}</b>...</span>
@@ -148,10 +164,11 @@ const ChatRoom = () => {
            <div>
                <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>{partnerName}</span>
                
-               {/* 🟢 DEBUG STATUS BAR: This will tell us the TRUTH */}
+               {/* 🟢 STATUS INDICATOR */}
                <div style={{fontSize:'0.7rem', color: isConnected ? '#4ade80' : '#f87171', display: 'flex', alignItems:'center', gap:'5px'}}>
                    <FaCircle size={8} /> 
                    {isConnected ? "Online" : "Disconnected"} 
+                   {/* Show only first 4 chars of Room ID for debugging */}
                    <span style={{opacity: 0.5}}> | Room: {roomId?.slice(0,4)}...</span> 
                </div>
            </div>
