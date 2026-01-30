@@ -5,7 +5,7 @@ import io from 'socket.io-client';
 import CrisisModal from './CrisisModal'; 
 import VoiceCall from './VoiceCall'; 
 import { encryptMessage, decryptMessage } from '../utils/encryption';
-import './App.css'; // Ensure you have this CSS file imported!
+import '../App.css'; // Ensure you have this CSS file imported!
 
 // 🟢 IMPORTANT: Replace this with your EXACT Render Backend URL
 // Check your Render Dashboard if you aren't sure. It usually ends in .onrender.com
