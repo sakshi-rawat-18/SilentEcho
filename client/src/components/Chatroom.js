@@ -5,12 +5,11 @@ import io from 'socket.io-client';
 import CrisisModal from './CrisisModal'; 
 import VoiceCall from './VoiceCall'; 
 import { encryptMessage, decryptMessage } from '../utils/encryption';
+import './ChatRoom.css'; // Ensure you have this CSS file imported!
 
-// 🟢 DEPLOYMENT CONFIGURATION
-// Step 1: Deploy Server to Render.
-// Step 2: Copy the URL (e.g., https://silentecho-api.onrender.com)
-// Step 3: Paste it below instead of "https://silentecho-eypq.onrender.com"
-const BACKEND_URL = "https://silentecho-eypq.onrender.com"; 
+// 🟢 IMPORTANT: Replace this with your EXACT Render Backend URL
+// Check your Render Dashboard if you aren't sure. It usually ends in .onrender.com
+const BACKEND_URL = "https://silent-echo-backend.onrender.com"; 
 
 const socket = io.connect(BACKEND_URL);
 
@@ -32,6 +31,15 @@ const ChatRoom = () => {
   const [isInitiator, setIsInitiator] = useState(false);
   const [incomingCall, setIncomingCall] = useState(false);
   const [callerSignal, setCallerSignal] = useState(null);
+
+  // Auto-scroll to bottom when message arrives
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const checkSafety = (text) => {
     const dangerWords = ["suicide", "kill myself", "die", "end it"];
@@ -129,8 +137,10 @@ const ChatRoom = () => {
       {incomingCall && !isInCall && (
         <div className="incoming-call-toast">
             <span>📞 Incoming Call from <b>{partnerName}</b>...</span>
-            <button onClick={acceptCall} className="accept-btn">Accept</button>
-            <button onClick={() => endCall(true)} className="reject-btn">Decline</button>
+            <div className="call-actions">
+                <button onClick={acceptCall} className="accept-btn">Accept</button>
+                <button onClick={() => endCall(true)} className="reject-btn">Decline</button>
+            </div>
         </div>
       )}
 
@@ -140,11 +150,12 @@ const ChatRoom = () => {
            <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>{partnerName}</span>
         </div>
         <div style={{display:'flex', gap:'10px'}}>
-            <button onClick={startCall} className="exit-btn" style={{background:'rgba(34, 197, 94, 0.2)', color:'#4ade80', border:'1px solid #22c55e'}}><FaPhoneAlt /> Call</button>
+            <button onClick={startCall} className="exit-btn call-btn-style"><FaPhoneAlt /> Call</button>
             <button onClick={leaveChat} className="exit-btn"><FaSignOutAlt /> Exit</button>
         </div>
       </div>
       
+      {/* 🟢 THIS CLASS NAME MUST MATCH THE CSS BELOW */}
       <div className="messages-area">
         {messages.map((msg) => (
           <div key={msg.id} className={`message-bubble ${msg.isSystem ? 'system-msg' : (msg.sender === socket.id ? 'my-msg' : 'their-msg')}`}>{msg.text}</div>
