@@ -9,13 +9,14 @@ import '../App.css';
 
 const BACKEND_URL = "https://silent-echo-backend.onrender.com"; 
 
-// 🟢 FIX: REMOVE 'withCredentials' and use default transports
-const socket = io.connect(BACKEND_URL, {
-    // withCredentials: true,  <-- DELETED THIS (Must not use with origin *)
+// 🟢 FINAL FIX: Force "Polling" (HTTP) only. 
+// This bypasses WebSocket blocks on Render Free Tier.
+const socket = io(BACKEND_URL, {
+    transports: ['polling'], // ⬅️ FORCE HTTP POLLING
+    withCredentials: false,  // ⬅️ Match the server's "*" rule
     autoConnect: true,
     reconnection: true,
-    reconnectionAttempts: 20,
-    transports: ['websocket', 'polling'] // Try fastest first
+    reconnectionAttempts: 50,
 });
 
 const ChatRoom = () => {
@@ -68,7 +69,7 @@ const ChatRoom = () => {
 
     socket.on('connect_error', (err) => {
         console.log("⚠️ Connection Error:", err.message);
-        setConnectError(err.message);
+        setConnectError(err.message); // Show us the error!
         setIsConnected(false);
     });
 
