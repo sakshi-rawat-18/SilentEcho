@@ -7,16 +7,16 @@ import VoiceCall from './VoiceCall';
 import { encryptMessage, decryptMessage } from '../utils/encryption';
 import '../App.css'; 
 
-// 🟢 YOUR RENDER BACKEND URL
 const BACKEND_URL = "https://silent-echo-backend.onrender.com"; 
 
-// 🟢 NEW: Robust Connection Options to fix "Disconnected" issue
+// 🟢 FIX: Force 'polling' for stability on mobile networks
 const socket = io.connect(BACKEND_URL, {
-    transports: ['websocket', 'polling'], // Try both methods
-    reconnection: true,                   // Always try to reconnect
-    reconnectionAttempts: 20,             // Try 20 times
-    reconnectionDelay: 1000,              // Wait 1s between tries
-    autoConnect: true                     // Connect immediately
+    transports: ['polling'], // ⬅️ ONLY use polling (More stable on 4G/5G)
+    reconnection: true,
+    reconnectionAttempts: 50,
+    reconnectionDelay: 1000,
+    autoConnect: true,
+    forceNew: true // Force a new connection attempt
 });
 
 const ChatRoom = () => {
@@ -31,8 +31,11 @@ const ChatRoom = () => {
   const [input, setInput] = useState("");
   const [partnerLeft, setPartnerLeft] = useState(false);
   const [showCrisisModal, setShowCrisisModal] = useState(false);
-  const [isConnected, setIsConnected] = useState(socket.connected); // Track connection status
   
+  // 🟢 Connection State
+  const [isConnected, setIsConnected] = useState(socket.connected); 
+  const [connectError, setConnectError] = useState(""); // 🟢 New: Store error message
+
   // 📞 CALL STATE
   const [isInCall, setIsInCall] = useState(false);
   const [isInitiator, setIsInitiator] = useState(false);
@@ -48,29 +51,30 @@ const ChatRoom = () => {
   }, [messages]);
 
   useEffect(() => {
-    // 🟢 FORCE CONNECTION ON LOAD
-    if (!socket.connected) {
-        socket.connect();
-    }
+    // 🟢 Debug: Force connect on mount
+    if (!socket.connected) socket.connect();
 
-    // 🟢 EVENT LISTENERS
     socket.on('connect', () => {
-        console.log("✅ Connected to Server:", socket.id);
+        console.log("✅ Connected:", socket.id);
         setIsConnected(true);
+        setConnectError(""); // Clear errors on success
         if (roomId) socket.emit("join_room", roomId); 
     });
 
-    socket.on('disconnect', () => {
-        console.log("❌ Disconnected");
+    socket.on('disconnect', (reason) => {
+        console.log("❌ Disconnected:", reason);
+        setIsConnected(false);
+        setConnectError(reason); // Show why it failed
+    });
+
+    // 🟢 ERROR LISTENER: This will tell us the problem
+    socket.on('connect_error', (err) => {
+        console.log("⚠️ Connection Error:", err.message);
+        setConnectError(err.message);
         setIsConnected(false);
     });
 
     if (!roomId) { navigate('/lobby'); return; }
-    
-    // Join room if already connected
-    if (socket.connected) {
-        socket.emit("join_room", roomId);
-    }
 
     socket.on("receive_message", (data) => {
       const decryptedText = decryptMessage(data.text);
@@ -84,7 +88,6 @@ const ChatRoom = () => {
     });
 
     socket.on("call_user", ({ signal }) => {
-      console.log("📞 Incoming Call Signal Received");
       setIncomingCall(true);
       setCallerSignal(signal);
     });
@@ -103,6 +106,7 @@ const ChatRoom = () => {
         socket.off("call_ended"); 
         socket.off("connect");
         socket.off("disconnect");
+        socket.off("connect_error");
     };
     // eslint-disable-next-line
   }, [roomId, navigate, partnerName]);
@@ -140,14 +144,12 @@ const ChatRoom = () => {
     <div className="chat-container glass-panel">
       {showCrisisModal && <CrisisModal onClose={() => setShowCrisisModal(false)} />}
 
-      {/* 🟢 FULL SCREEN CALL WRAPPER */}
       {isInCall && (
         <div className="voice-call-wrapper">
             <VoiceCall socket={socket} roomId={roomId} isInitiator={isInitiator} callerSignal={callerSignal} onClose={() => endCall(true)} />
         </div>
       )}
 
-      {/* 📞 INCOMING CALL POPUP */}
       {incomingCall && !isInCall && (
         <div className="incoming-call-toast">
             <span>📞 Incoming Call from <b>{partnerName}</b>...</span>
@@ -164,12 +166,12 @@ const ChatRoom = () => {
            <div>
                <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>{partnerName}</span>
                
-               {/* 🟢 STATUS INDICATOR */}
+               {/* 🟢 STATUS & ERROR DISPLAY */}
                <div style={{fontSize:'0.7rem', color: isConnected ? '#4ade80' : '#f87171', display: 'flex', alignItems:'center', gap:'5px'}}>
                    <FaCircle size={8} /> 
                    {isConnected ? "Online" : "Disconnected"} 
-                   {/* Show only first 4 chars of Room ID for debugging */}
-                   <span style={{opacity: 0.5}}> | Room: {roomId?.slice(0,4)}...</span> 
+                   {/* Show error if disconnected */}
+                   {!isConnected && <span style={{color: 'yellow'}}>({connectError})</span>}
                </div>
            </div>
         </div>
