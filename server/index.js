@@ -9,10 +9,16 @@ const { CohereClient } = require("cohere-ai");
 
 const app = express();
 
-// 🟢 FIX 1: Allow CORS for both Localhost AND Vercel (Cloud)
+// 🟢 FIX 1: Explicitly allow your Vercel URL and Localhost
+const allowedOrigins = [
+  "https://silent-echo-six.vercel.app", // Your Vercel App
+  "http://localhost:3000"                 // Your Laptop (Testing)
+];
+
 app.use(cors({
-  origin: "*", // Allow all origins (Easiest for deployment)
-  methods: ["GET", "POST", "DELETE", "PUT"]
+  origin: allowedOrigins,
+  methods: ["GET", "POST", "DELETE", "PUT"],
+  credentials: true
 }));
 
 app.use(express.json());
@@ -117,11 +123,12 @@ app.delete('/api/chat-history/:username', async (req, res) => {
 });
 
 // 2. SETUP SOCKET.IO 🔌
-// 🟢 FIX 2: Dynamic CORS origin for Socket.io
+// 🟢 FIX 2: Apply the "Safe List" to Socket.io too
 const io = new Server(server, {
   cors: {
-    origin: "*", // 🟢 ALLOWS CONNECTION FROM VERCEL (OR ANYWHERE)
+    origin: allowedOrigins, // 🟢 ONLY allow Vercel & Localhost
     methods: ["GET", "POST"],
+    credentials: true
   },
 });
 
@@ -138,7 +145,7 @@ io.on("connection", (socket) => {
       const roomId = uuidv4();
       const matchSocket = waitingUser.socket;
       const matchName = waitingUser.name;
-      const matchSocketId = matchSocket.id; // Store ID before usage
+      const matchSocketId = matchSocket.id; 
       
       matchSocket.join(roomId);
       socket.join(roomId);
@@ -156,14 +163,12 @@ io.on("connection", (socket) => {
   socket.on("join_room", (roomId) => { socket.join(roomId); });
   socket.on("send_message", (data) => { socket.to(data.room).emit("receive_message", data); });
   
-  // 🟢 WebRTC Signaling (Call Features) - UPDATED TO USE ROOM ID
+  // 🟢 WebRTC Signaling (Call Features)
   socket.on("call_user", (data) => { 
-      // 🟢 CHANGE: Broadcast to the ROOM so the partner gets it automatically
       socket.to(data.roomId).emit("call_user", { signal: data.signalData, from: data.from });
   });
 
   socket.on("answer_call", (data) => {
-      // 🟢 CHANGE: Broadcast acceptance to the room
       socket.to(data.roomId).emit("call_accepted", data.signal);
   });
 
@@ -179,7 +184,6 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => { console.log("🔥 User Disconnected"); });
 });
 
-// 🟢 FIX 3: Use Dynamic Port from Render/Heroku
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`✅ SERVER RUNNING ON PORT ${PORT}`);
