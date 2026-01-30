@@ -10,15 +10,14 @@ import '../App.css';
 const BACKEND_URL = "https://silent-echo-backend.onrender.com"; 
 
 // 🟢 FIX: Force 'polling' for stability on mobile networks
+// 🟢 FIX: Try WebSocket FIRST (It's faster and works better on Render)
 const socket = io.connect(BACKEND_URL, {
-    transports: ['polling'], // ⬅️ ONLY use polling (More stable on 4G/5G)
+    transports: ['websocket', 'polling'], // <--- CHANGED ORDER
     reconnection: true,
-    reconnectionAttempts: 50,
+    reconnectionAttempts: 20,
     reconnectionDelay: 1000,
-    autoConnect: true,
-    forceNew: true // Force a new connection attempt
+    autoConnect: true
 });
-
 const ChatRoom = () => {
   const navigate = useNavigate();
   const location = useLocation();
