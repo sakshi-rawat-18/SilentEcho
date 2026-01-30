@@ -1,15 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { FaUserSecret, FaPaperPlane, FaSignOutAlt, FaPhoneAlt } from 'react-icons/fa';
+import { FaUserSecret, FaPaperPlane, FaSignOutAlt, FaPhoneAlt, FaCircle } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
 import io from 'socket.io-client';
 import CrisisModal from './CrisisModal'; 
 import VoiceCall from './VoiceCall'; 
 import { encryptMessage, decryptMessage } from '../utils/encryption';
-import '../App.css'; // 🟢 Importing App.css from the folder above
+import '../App.css'; 
 
-// 🟢 YOUR RENDER BACKEND URL
 const BACKEND_URL = "https://silent-echo-backend.onrender.com"; 
 
+// 🟢 Move socket definition OUTSIDE to keep it stable
 const socket = io.connect(BACKEND_URL);
 
 const ChatRoom = () => {
@@ -24,6 +24,7 @@ const ChatRoom = () => {
   const [input, setInput] = useState("");
   const [partnerLeft, setPartnerLeft] = useState(false);
   const [showCrisisModal, setShowCrisisModal] = useState(false);
+  const [isConnected, setIsConnected] = useState(socket.connected); // 🟢 Track Connection
   
   // 📞 CALL STATE
   const [isInCall, setIsInCall] = useState(false);
@@ -31,7 +32,6 @@ const ChatRoom = () => {
   const [incomingCall, setIncomingCall] = useState(false);
   const [callerSignal, setCallerSignal] = useState(null);
 
-  // Auto-scroll to bottom when message arrives
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -40,13 +40,22 @@ const ChatRoom = () => {
     scrollToBottom();
   }, [messages]);
 
-  const checkSafety = (text) => {
-    const dangerWords = ["suicide", "kill myself", "die", "end it"];
-    if (dangerWords.some(word => text.toLowerCase().includes(word))) setShowCrisisModal(true);
-  };
-
   useEffect(() => {
+    // 🟢 CONNECTION DEBUGGING
+    socket.on('connect', () => {
+        console.log("✅ Connected to Server:", socket.id);
+        setIsConnected(true);
+        if (roomId) socket.emit("join_room", roomId); // Re-join if we reconnect
+    });
+
+    socket.on('disconnect', () => {
+        console.log("❌ Disconnected");
+        setIsConnected(false);
+    });
+
     if (!roomId) { navigate('/lobby'); return; }
+    
+    // 🟢 FORCE JOIN IMMEDIATELY
     socket.emit("join_room", roomId);
 
     socket.on("receive_message", (data) => {
@@ -70,12 +79,7 @@ const ChatRoom = () => {
         setIsInCall(false);
         setIncomingCall(false);
         setCallerSignal(null);
-        setMessages((list) => [...list, { 
-            id: Date.now(), 
-            text: "📞 Call Ended", 
-            sender: "system", 
-            isSystem: true 
-        }]);
+        setMessages((list) => [...list, { id: Date.now(), text: "📞 Call Ended", sender: "system", isSystem: true }]);
     });
 
     return () => { 
@@ -83,6 +87,8 @@ const ChatRoom = () => {
         socket.off("user_left"); 
         socket.off("call_user"); 
         socket.off("call_ended"); 
+        socket.off("connect");
+        socket.off("disconnect");
     };
     // eslint-disable-next-line
   }, [roomId, navigate, partnerName]);
@@ -108,7 +114,6 @@ const ChatRoom = () => {
 
   const handleSend = async () => {
     if (!input.trim() || partnerLeft) return;
-    checkSafety(input);
     const messageData = { room: roomId, id: Date.now(), text: encryptMessage(input), sender: socket.id, time: new Date().toLocaleTimeString() };
     await socket.emit("send_message", messageData);
     setMessages((list) => [...list, { ...messageData, text: input }]); 
@@ -121,20 +126,12 @@ const ChatRoom = () => {
     <div className="chat-container glass-panel">
       {showCrisisModal && <CrisisModal onClose={() => setShowCrisisModal(false)} />}
 
-      {/* 📞 VOICE CALL MODAL - WRAPPED FOR FULL SCREEN */}
       {isInCall && (
         <div className="voice-call-wrapper">
-            <VoiceCall 
-               socket={socket} 
-               roomId={roomId} 
-               isInitiator={isInitiator}
-               callerSignal={callerSignal}
-               onClose={() => endCall(true)} 
-            />
+            <VoiceCall socket={socket} roomId={roomId} isInitiator={isInitiator} callerSignal={callerSignal} onClose={() => endCall(true)} />
         </div>
       )}
 
-      {/* 📞 INCOMING CALL POPUP */}
       {incomingCall && !isInCall && (
         <div className="incoming-call-toast">
             <span>📞 Incoming Call from <b>{partnerName}</b>...</span>
@@ -148,7 +145,16 @@ const ChatRoom = () => {
       <div className="chat-header">
         <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
            <FaUserSecret size={20} color="#60a5fa" /> 
-           <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>{partnerName}</span>
+           <div>
+               <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>{partnerName}</span>
+               
+               {/* 🟢 DEBUG STATUS BAR: This will tell us the TRUTH */}
+               <div style={{fontSize:'0.7rem', color: isConnected ? '#4ade80' : '#f87171', display: 'flex', alignItems:'center', gap:'5px'}}>
+                   <FaCircle size={8} /> 
+                   {isConnected ? "Online" : "Disconnected"} 
+                   <span style={{opacity: 0.5}}> | Room: {roomId?.slice(0,4)}...</span> 
+               </div>
+           </div>
         </div>
         <div style={{display:'flex', gap:'10px'}}>
             <button onClick={startCall} className="exit-btn call-btn-style"><FaPhoneAlt /> Call</button>
