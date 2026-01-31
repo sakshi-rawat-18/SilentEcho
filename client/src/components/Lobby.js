@@ -1,40 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaRobot, FaSmile, FaChartLine, FaSignOutAlt, FaHeart, FaUsers, FaExclamationTriangle, FaSpinner } from 'react-icons/fa';
+// 🟢 FIX: Removed 'FaSpinner' from this list
+import { FaRobot, FaSmile, FaChartLine, FaSignOutAlt, FaHeart, FaUsers, FaExclamationTriangle } from 'react-icons/fa';
 import CrisisModal from './CrisisModal'; 
 import { db } from '../firebaseConfig'; 
 import { ref, push, get, remove, set } from "firebase/database";
-
-const PSYCH_FACTS = [
-  "Talking to a stranger can actually boost your well-being.",
-  "Journaling your feelings reduces stress by 40%.",
-  "The color blue has a calming effect on the brain.",
-  "Hugging for 20 seconds releases oxytocin, the trust hormone.",
-  "Listening to music can significantly reduce anxiety."
-];
 
 const Lobby = () => {
   const navigate = useNavigate();
   const [username, setUsername] = useState("Friend");
   const [showSOS, setShowSOS] = useState(false); 
-  
   const [isSearching, setIsSearching] = useState(false);
-  const [currentFact, setCurrentFact] = useState(PSYCH_FACTS[0]);
 
   useEffect(() => {
     const storedName = localStorage.getItem("chat_username");
     if (storedName) setUsername(storedName);
   }, []);
-
-  useEffect(() => {
-    let interval;
-    if (isSearching) {
-        interval = setInterval(() => {
-            setCurrentFact(PSYCH_FACTS[Math.floor(Math.random() * PSYCH_FACTS.length)]);
-        }, 3000);
-    }
-    return () => clearInterval(interval);
-  }, [isSearching]);
 
   const handleLogout = () => {
     localStorage.removeItem("chat_username");
@@ -73,18 +54,6 @@ const Lobby = () => {
   return (
     <div style={styles.appContainer}>
       {showSOS && <CrisisModal onClose={() => setShowSOS(false)} />}
-
-      {/* LOADING OVERLAY */}
-      {isSearching && (
-        <div style={styles.loadingOverlay}>
-            <div className="pulse-ring" style={{width:'80px', height:'80px', border:'3px solid #67e8f9'}}></div>
-            <h2 style={{marginTop: '20px', zIndex: 2}}>Finding a Partner...</h2>
-            <div style={styles.factBox}>
-                <p style={{fontSize: '0.9rem', color: '#aaa', marginBottom: '5px'}}>DID YOU KNOW?</p>
-                <p style={{fontStyle: 'italic', fontSize: '1.1rem'}}>"{currentFact}"</p>
-            </div>
-        </div>
-      )}
 
       {/* HEADER */}
       <div style={styles.header}>
@@ -132,7 +101,7 @@ const Lobby = () => {
         </div>
       </div>
       
-      {/* 🟢 RESTORED FOOTER */}
+      {/* FOOTER */}
       <div style={styles.footer}>
         <div style={styles.footerTop}>
           <p style={{margin: 0, fontSize: '0.9rem'}}>
@@ -155,11 +124,9 @@ const Lobby = () => {
   );
 };
 
-// 🟢 RESTORED STYLES
+// STYLES
 const styles = {
   appContainer: { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)', color: 'white', display: 'flex', flexDirection: 'column' },
-  loadingOverlay: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(15, 12, 41, 0.95)', zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(10px)' },
-  factBox: { marginTop: '30px', padding: '20px', borderLeft: '4px solid #67e8f9', background: 'rgba(255,255,255,0.05)', maxWidth: '400px', textAlign: 'center', zIndex: 2 },
   header: { height: '70px', padding: '0 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.3)', flexShrink: 0 },
   logo: { background: 'linear-gradient(to right, #67e8f9, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '1.5rem' },
   userInfo: { display: 'flex', alignItems: 'center', gap: '15px' },
@@ -174,8 +141,6 @@ const styles = {
   glassCard: { background: 'rgba(255, 255, 255, 0.05)', padding: '30px', borderRadius: '20px', cursor: 'pointer', border: '1px solid rgba(255, 255, 255, 0.1)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' },
   iconGlow: { marginBottom: '15px', padding: '12px', borderRadius: '50%', background: 'rgba(0,0,0,0.2)' },
   cardDesc: { color: '#888', fontSize: '0.85rem', marginTop: '8px' },
-  
-  // 🟢 FIXED FOOTER STYLES
   footer: { padding: '15px', textAlign: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(15px)', borderTop: '1px solid rgba(255,255,255,0.05)', color: '#888', display: 'flex', flexDirection: 'column', gap: '8px', zIndex: 100, flexShrink: 0 },
   footerTop: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', flexWrap: 'wrap' },
   version: { fontSize: '0.75rem', color: '#555', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '10px' },
