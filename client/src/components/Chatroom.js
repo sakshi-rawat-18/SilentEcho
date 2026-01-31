@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { FaUserSecret, FaPaperPlane, FaSignOutAlt, FaCircle } from 'react-icons/fa';
+import { FaUserSecret, FaPaperPlane, FaSignOutAlt, FaCircle, FaPhoneAlt } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
-// 🟢 NEW: Import Firebase Database
 import { db } from '../firebaseConfig';
 import { ref, push, onValue, off } from "firebase/database";
 import { encryptMessage, decryptMessage } from '../utils/encryption';
@@ -17,8 +16,8 @@ const ChatRoom = () => {
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [partnerActive, setPartnerActive] = useState(true);
   
-  // Create a unique ID for "Me" (just for this session)
   const [myId] = useState(localStorage.getItem("chat_username") || Math.random().toString(36).substr(2, 9));
 
   const scrollToBottom = () => {
@@ -32,87 +31,100 @@ const ChatRoom = () => {
   useEffect(() => {
     if (!roomId) { navigate('/lobby'); return; }
 
-    // 🟢 1. CONNECT TO FIREBASE CHAT ROOM
     const messagesRef = ref(db, `chats/${roomId}`);
 
-    // 🟢 2. LISTEN FOR NEW MESSAGES
     const listener = onValue(messagesRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        // Convert Firebase object to array & Decrypt
-        const loadedMessages = Object.values(data).map(msg => ({
-          ...msg,
-          text: decryptMessage(msg.text) 
-        }));
+        const loadedMessages = Object.values(data).map(msg => {
+            // 🟢 Handle System Messages (User Left)
+            if (msg.system) {
+                if (msg.text.includes("disconnected")) setPartnerActive(false);
+                return msg; 
+            }
+            return { ...msg, text: decryptMessage(msg.text) };
+        });
         setMessages(loadedMessages);
       }
     });
 
-    // Cleanup: Stop listening when we leave
-    return () => {
-      off(messagesRef, listener);
-    };
+    return () => off(messagesRef, listener);
   }, [roomId, navigate]);
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !partnerActive) return;
 
-    // 🟢 3. SEND MESSAGE TO FIREBASE
     const messagesRef = ref(db, `chats/${roomId}`);
-    
     await push(messagesRef, {
       sender: myId,
-      text: encryptMessage(input), // Encrypt before sending
-      timestamp: Date.now(),
-      senderName: myId // You can change this to a real username if you have one
+      text: encryptMessage(input),
+      timestamp: Date.now()
     });
-
     setInput("");
   };
 
-  const leaveChat = () => { 
+  // 🟢 HANDLE EXIT: Notify partner before leaving
+  const leaveChat = async () => { 
+    const messagesRef = ref(db, `chats/${roomId}`);
+    await push(messagesRef, {
+        sender: "System",
+        text: "Stranger has disconnected.",
+        system: true, // Mark as system message
+        timestamp: Date.now()
+    });
     navigate('/lobby'); 
+  };
+
+  const startCall = () => {
+      alert("📞 Voice Calling is being updated for the new secure server! Coming very soon.");
   };
 
   return (
     <div className="chat-container glass-panel">
       
-      {/* HEADER */}
       <div className="chat-header">
         <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
            <FaUserSecret size={20} color="#60a5fa" /> 
            <div>
                <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>{partnerName}</span>
                
-               {/* 🟢 STATUS IS ALWAYS ONLINE WITH FIREBASE */}
-               <div style={{fontSize:'0.7rem', color: '#4ade80', display: 'flex', alignItems:'center', gap:'5px'}}>
-                   <FaCircle size={8} /> Online (Firebase)
+               <div style={{fontSize:'0.7rem', color: partnerActive ? '#4ade80' : '#f87171', display: 'flex', alignItems:'center', gap:'5px'}}>
+                   <FaCircle size={8} /> {partnerActive ? "Online" : "Disconnected"}
                </div>
            </div>
         </div>
-        <button onClick={leaveChat} className="exit-btn"><FaSignOutAlt /> Exit</button>
+        
+        {/* 🟢 BUTTONS RESTORED */}
+        <div style={{display:'flex', gap:'10px'}}>
+            <button onClick={startCall} className="exit-btn call-btn-style" style={{background: '#10b981', border:'none'}}>
+                <FaPhoneAlt /> Call
+            </button>
+            <button onClick={leaveChat} className="exit-btn">
+                <FaSignOutAlt /> Exit
+            </button>
+        </div>
       </div>
       
-      {/* MESSAGES AREA */}
       <div className="messages-area">
         {messages.map((msg, index) => (
-          <div key={index} className={`message-bubble ${msg.sender === myId ? 'my-msg' : 'their-msg'}`}>
+          <div key={index} className={`message-bubble ${msg.system ? 'system-msg' : (msg.sender === myId ? 'my-msg' : 'their-msg')}`}>
             {msg.text}
           </div>
         ))}
+        {!partnerActive && <div className="system-msg">Chat has ended.</div>}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* INPUT AREA */}
       <div className="chat-input-box">
         <input 
             type="text" 
-            placeholder="Type safely..." 
+            placeholder={partnerActive ? "Type safely..." : "Partner disconnected"} 
             value={input} 
+            disabled={!partnerActive}
             onChange={(e) => setInput(e.target.value)} 
             onKeyPress={(e) => e.key === 'Enter' && handleSend()} 
         />
-        <button className="send-btn" onClick={handleSend}><FaPaperPlane size={14} /></button>
+        <button className="send-btn" onClick={handleSend} disabled={!partnerActive}><FaPaperPlane size={14} /></button>
       </div>
     </div>
   );
