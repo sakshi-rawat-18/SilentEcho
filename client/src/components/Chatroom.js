@@ -1,23 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { FaUserSecret, FaPaperPlane, FaSignOutAlt, FaPhoneAlt, FaCircle } from 'react-icons/fa';
+import { FaUserSecret, FaPaperPlane, FaSignOutAlt, FaCircle } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
-import io from 'socket.io-client';
-import CrisisModal from './CrisisModal'; 
-import VoiceCall from './VoiceCall'; 
+// 🟢 NEW: Import Firebase Database
+import { db } from '../firebaseConfig';
+import { ref, push, onValue, off } from "firebase/database";
 import { encryptMessage, decryptMessage } from '../utils/encryption';
 import '../App.css'; 
-
-const BACKEND_URL = "https://silent-echo-backend.onrender.com"; 
-
-// 🟢 FINAL FIX: Force "Polling" (HTTP) only. 
-// This bypasses WebSocket blocks on Render Free Tier.
-const socket = io(BACKEND_URL, {
-    transports: ['polling'], // ⬅️ FORCE HTTP POLLING
-    withCredentials: false,  // ⬅️ Match the server's "*" rule
-    autoConnect: true,
-    reconnection: true,
-    reconnectionAttempts: 50,
-});
 
 const ChatRoom = () => {
   const navigate = useNavigate();
@@ -29,18 +17,9 @@ const ChatRoom = () => {
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [partnerLeft, setPartnerLeft] = useState(false);
-  const [showCrisisModal, setShowCrisisModal] = useState(false);
   
-  // Connection State
-  const [isConnected, setIsConnected] = useState(socket.connected); 
-  const [connectError, setConnectError] = useState(""); 
-
-  // Call State
-  const [isInCall, setIsInCall] = useState(false);
-  const [isInitiator, setIsInitiator] = useState(false);
-  const [incomingCall, setIncomingCall] = useState(false);
-  const [callerSignal, setCallerSignal] = useState(null);
+  // Create a unique ID for "Me" (just for this session)
+  const [myId] = useState(localStorage.getItem("chat_username") || Math.random().toString(36).substr(2, 9));
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,142 +30,88 @@ const ChatRoom = () => {
   }, [messages]);
 
   useEffect(() => {
-    // Force connect on mount
-    if (!socket.connected) socket.connect();
-
-    socket.on('connect', () => {
-        console.log("✅ Connected:", socket.id);
-        setIsConnected(true);
-        setConnectError(""); 
-        if (roomId) socket.emit("join_room", roomId); 
-    });
-
-    socket.on('disconnect', (reason) => {
-        console.log("❌ Disconnected:", reason);
-        setIsConnected(false);
-        setConnectError(reason); 
-    });
-
-    socket.on('connect_error', (err) => {
-        console.log("⚠️ Connection Error:", err.message);
-        setConnectError(err.message); // Show us the error!
-        setIsConnected(false);
-    });
-
     if (!roomId) { navigate('/lobby'); return; }
 
-    socket.on("receive_message", (data) => {
-      const decryptedText = decryptMessage(data.text);
-      setMessages((list) => [...list, { ...data, text: decryptedText }]);
+    // 🟢 1. CONNECT TO FIREBASE CHAT ROOM
+    const messagesRef = ref(db, `chats/${roomId}`);
+
+    // 🟢 2. LISTEN FOR NEW MESSAGES
+    const listener = onValue(messagesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        // Convert Firebase object to array & Decrypt
+        const loadedMessages = Object.values(data).map(msg => ({
+          ...msg,
+          text: decryptMessage(msg.text) 
+        }));
+        setMessages(loadedMessages);
+      }
     });
 
-    socket.on("user_left", () => {
-      setPartnerLeft(true);
-      setMessages((list) => [...list, { id: Date.now(), text: `${partnerName} has left the chat.`, sender: "system", isSystem: true }]);
-      endCall(false); 
-    });
-
-    socket.on("call_user", ({ signal }) => {
-      setIncomingCall(true);
-      setCallerSignal(signal);
-    });
-
-    socket.on("call_ended", () => {
-        setIsInCall(false);
-        setIncomingCall(false);
-        setCallerSignal(null);
-        setMessages((list) => [...list, { id: Date.now(), text: "📞 Call Ended", sender: "system", isSystem: true }]);
-    });
-
-    return () => { 
-        socket.off("receive_message"); 
-        socket.off("user_left"); 
-        socket.off("call_user"); 
-        socket.off("call_ended"); 
-        socket.off("connect");
-        socket.off("disconnect");
-        socket.off("connect_error");
+    // Cleanup: Stop listening when we leave
+    return () => {
+      off(messagesRef, listener);
     };
-    // eslint-disable-next-line
-  }, [roomId, navigate, partnerName]);
-
-  const endCall = (notifyServer = true) => {
-    if (notifyServer) {
-        socket.emit("call_ended", { roomId });
-    }
-    setIsInCall(false); 
-    setIncomingCall(false);
-  };
-
-  const startCall = () => {
-    setIsInitiator(true);
-    setIsInCall(true);
-  };
-
-  const acceptCall = () => {
-    setIsInCall(true);
-    setIsInitiator(false);
-    setIncomingCall(false);
-  };
+  }, [roomId, navigate]);
 
   const handleSend = async () => {
-    if (!input.trim() || partnerLeft) return;
-    const messageData = { room: roomId, id: Date.now(), text: encryptMessage(input), sender: socket.id, time: new Date().toLocaleTimeString() };
-    await socket.emit("send_message", messageData);
-    setMessages((list) => [...list, { ...messageData, text: input }]); 
+    if (!input.trim()) return;
+
+    // 🟢 3. SEND MESSAGE TO FIREBASE
+    const messagesRef = ref(db, `chats/${roomId}`);
+    
+    await push(messagesRef, {
+      sender: myId,
+      text: encryptMessage(input), // Encrypt before sending
+      timestamp: Date.now(),
+      senderName: myId // You can change this to a real username if you have one
+    });
+
     setInput("");
   };
 
-  const leaveChat = () => { socket.emit("leave_room", roomId); navigate('/lobby'); };
+  const leaveChat = () => { 
+    navigate('/lobby'); 
+  };
 
   return (
     <div className="chat-container glass-panel">
-      {showCrisisModal && <CrisisModal onClose={() => setShowCrisisModal(false)} />}
-
-      {isInCall && (
-        <div className="voice-call-wrapper">
-            <VoiceCall socket={socket} roomId={roomId} isInitiator={isInitiator} callerSignal={callerSignal} onClose={() => endCall(true)} />
-        </div>
-      )}
-
-      {incomingCall && !isInCall && (
-        <div className="incoming-call-toast">
-            <span>📞 Incoming Call from <b>{partnerName}</b>...</span>
-            <div className="call-actions">
-                <button onClick={acceptCall} className="accept-btn">Accept</button>
-                <button onClick={() => endCall(true)} className="reject-btn">Decline</button>
-            </div>
-        </div>
-      )}
-
+      
+      {/* HEADER */}
       <div className="chat-header">
         <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
            <FaUserSecret size={20} color="#60a5fa" /> 
            <div>
                <span style={{fontWeight:'bold', fontSize:'1.1rem'}}>{partnerName}</span>
                
-               <div style={{fontSize:'0.7rem', color: isConnected ? '#4ade80' : '#f87171', display: 'flex', alignItems:'center', gap:'5px'}}>
-                   <FaCircle size={8} /> 
-                   {isConnected ? "Online" : "Disconnected"} 
-                   {!isConnected && <span style={{color: 'yellow'}}>({connectError})</span>}
+               {/* 🟢 STATUS IS ALWAYS ONLINE WITH FIREBASE */}
+               <div style={{fontSize:'0.7rem', color: '#4ade80', display: 'flex', alignItems:'center', gap:'5px'}}>
+                   <FaCircle size={8} /> Online (Firebase)
                </div>
            </div>
         </div>
-        <div style={{display:'flex', gap:'10px'}}>
-            <button onClick={startCall} className="exit-btn call-btn-style"><FaPhoneAlt /> Call</button>
-            <button onClick={leaveChat} className="exit-btn"><FaSignOutAlt /> Exit</button>
-        </div>
+        <button onClick={leaveChat} className="exit-btn"><FaSignOutAlt /> Exit</button>
       </div>
       
+      {/* MESSAGES AREA */}
       <div className="messages-area">
-        {messages.map((msg) => (
-          <div key={msg.id} className={`message-bubble ${msg.isSystem ? 'system-msg' : (msg.sender === socket.id ? 'my-msg' : 'their-msg')}`}>{msg.text}</div>
+        {messages.map((msg, index) => (
+          <div key={index} className={`message-bubble ${msg.sender === myId ? 'my-msg' : 'their-msg'}`}>
+            {msg.text}
+          </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
+      {/* INPUT AREA */}
       <div className="chat-input-box">
-        <input type="text" placeholder="Type safely..." value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} />
+        <input 
+            type="text" 
+            placeholder="Type safely..." 
+            value={input} 
+            onChange={(e) => setInput(e.target.value)} 
+            onKeyPress={(e) => e.key === 'Enter' && handleSend()} 
+        />
         <button className="send-btn" onClick={handleSend}><FaPaperPlane size={14} /></button>
       </div>
     </div>
