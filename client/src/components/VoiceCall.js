@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import SimplePeer from 'simple-peer'; 
 import { db } from '../firebaseConfig';
-import { ref, onValue, set, remove } from "firebase/database";
+import { ref, onValue, set, remove, off } from "firebase/database";
 import { FaMicrophone, FaMicrophoneSlash, FaPhoneSlash, FaVolumeUp } from 'react-icons/fa';
 import '../App.css'; 
 
@@ -14,6 +14,9 @@ const VoiceCall = ({ roomId, isInitiator, onClose }) => {
   const peerRef = useRef();
 
   useEffect(() => {
+    let callRef = null;
+    let callListener = null;
+
     navigator.mediaDevices.getUserMedia({ video: false, audio: true }).then((currentStream) => {
       setStream(currentStream);
       if (userVideo.current) userVideo.current.srcObject = currentStream;
@@ -39,10 +42,11 @@ const VoiceCall = ({ roomId, isInitiator, onClose }) => {
 
       peerRef.current = peer;
 
+      // LISTEN FOR SIGNAL
       const partnerPath = isInitiator ? 'answer' : 'offer';
-      const callRef = ref(db, `calls/${roomId}/${partnerPath}`);
+      callRef = ref(db, `calls/${roomId}/${partnerPath}`);
 
-      onValue(callRef, (snapshot) => {
+      callListener = onValue(callRef, (snapshot) => {
         const data = snapshot.val();
         if (data && !peer.destroyed) {
            peer.signal(JSON.parse(data));
@@ -50,9 +54,11 @@ const VoiceCall = ({ roomId, isInitiator, onClose }) => {
       });
     });
 
+    // 🟢 CLEANUP: This runs when the call ends
     return () => {
        if(stream) stream.getTracks().forEach(track => track.stop());
        if(peerRef.current) peerRef.current.destroy();
+       if(callRef && callListener) off(callRef, callListener); // STOP LISTENING
     };
     // eslint-disable-next-line
   }, []);
@@ -65,12 +71,11 @@ const VoiceCall = ({ roomId, isInitiator, onClose }) => {
   };
 
   const endCall = async () => {
-      // 🟢 CRITICAL: Delete call data so the other person knows to hang up
-      await remove(ref(db, `calls/${roomId}`)); 
-      onClose(); // Close my screen
+      await remove(ref(db, `calls/${roomId}`)); // Delete call data
+      onClose(); 
   };
 
-  // 🟢 NEW STYLES: Force Full Screen Overlay
+  // 🟢 FULL SCREEN OVERLAY STYLE
   const overlayStyle = {
       position: 'fixed',
       top: 0, 
@@ -78,7 +83,7 @@ const VoiceCall = ({ roomId, isInitiator, onClose }) => {
       width: '100vw',
       height: '100vh',
       background: 'linear-gradient(135deg, #1f2937, #111827)',
-      zIndex: 9999, // Ensure it sits on TOP of everything
+      zIndex: 10000, // Top of everything
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -89,11 +94,9 @@ const VoiceCall = ({ roomId, isInitiator, onClose }) => {
   return (
     <div style={overlayStyle}>
         <div className="pulse-ring"></div>
-        
         <div className="caller-avatar" style={{marginBottom: '20px'}}>
             <FaVolumeUp size={50} color="#60a5fa" />
         </div>
-        
         <h2 style={{marginBottom: '10px'}}>{callStatus}</h2>
         <p style={{color: '#9ca3af', marginBottom: '40px'}}>{isMuted ? "You are muted" : "Speaking..."}</p>
         
@@ -101,13 +104,10 @@ const VoiceCall = ({ roomId, isInitiator, onClose }) => {
             <button onClick={toggleMute} className={`icon-btn ${isMuted ? 'muted' : ''}`} style={btnStyle}>
                 {isMuted ? <FaMicrophoneSlash /> : <FaMicrophone />}
             </button>
-            
             <button onClick={endCall} className="icon-btn hangup" style={{...btnStyle, background: '#ef4444'}}>
                 <FaPhoneSlash />
             </button>
         </div>
-        
-        {/* Hidden Audio Elements */}
         <audio ref={userVideo} muted autoPlay />
         <audio ref={partnerVideo} autoPlay />
     </div>
@@ -115,19 +115,9 @@ const VoiceCall = ({ roomId, isInitiator, onClose }) => {
 };
 
 const btnStyle = {
-    padding: '20px',
-    borderRadius: '50%',
-    border: 'none',
-    background: '#374151',
-    color: 'white',
-    fontSize: '1.5rem',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '70px',
-    height: '70px',
-    transition: 'all 0.2s'
+    padding: '20px', borderRadius: '50%', border: 'none', background: '#374151', color: 'white',
+    fontSize: '1.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: '70px', height: '70px', transition: 'all 0.2s'
 };
 
 export default VoiceCall;

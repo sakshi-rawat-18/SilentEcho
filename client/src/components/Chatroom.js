@@ -29,18 +29,23 @@ const ChatRoom = () => {
   const [input, setInput] = useState("");
   const [connectionStatus, setConnectionStatus] = useState(isHost ? "waiting" : "connected");
   
-  // Facts State
   const [currentFact, setCurrentFact] = useState(PSYCH_FACTS[0]);
 
-  // Call States
+  // CALL STATES
   const [isInCall, setIsInCall] = useState(false);
   const [isInitiator, setIsInitiator] = useState(false);
   const [incomingCall, setIncomingCall] = useState(false);
 
   const [myId] = useState(localStorage.getItem("chat_username") || Math.random().toString(36).substr(2, 9));
 
+  // 🟢 SAFETY CHECK: If in call, FORCE hide incoming popup
   useEffect(() => {
-    // Cycle facts while waiting
+    if (isInCall) {
+        setIncomingCall(false);
+    }
+  }, [isInCall]);
+
+  useEffect(() => {
     let interval;
     if (connectionStatus === "waiting") {
         interval = setInterval(() => {
@@ -57,12 +62,10 @@ const ChatRoom = () => {
   useEffect(() => {
     if (!roomId) { navigate('/lobby'); return; }
 
-    // 1. REGISTER PRESENCE
     const myPresenceRef = ref(db, `rooms/${roomId}/users/${myId}`);
     set(myPresenceRef, true);
     onDisconnect(myPresenceRef).remove();
 
-    // 2. CHECK USERS
     const usersRef = ref(db, `rooms/${roomId}/users`);
     const usersListener = onValue(usersRef, (snapshot) => {
         if (snapshot.exists()) {
@@ -72,7 +75,6 @@ const ChatRoom = () => {
         }
     });
 
-    // 3. LISTEN MESSAGES
     const messagesRef = ref(db, `chats/${roomId}`);
     const msgListener = onValue(messagesRef, (snapshot) => {
       const data = snapshot.val();
@@ -88,11 +90,17 @@ const ChatRoom = () => {
       }
     });
 
-    // 4. LISTEN CALLS
+    // LISTEN FOR CALLS
     const callRef = ref(db, `calls/${roomId}`);
     const callListener = onValue(callRef, (snapshot) => {
         const data = snapshot.val();
-        if (data && data.offer && !isInitiator && !isInCall) setIncomingCall(true);
+        
+        // Incoming Call Logic
+        if (data && data.offer && !isInitiator && !isInCall) {
+            setIncomingCall(true);
+        }
+
+        // Auto-Hangup Logic: If data is gone, and I am in call, close it
         if (!data && isInCall) {
             setIsInCall(false);
             setIncomingCall(false);
@@ -137,26 +145,24 @@ const ChatRoom = () => {
   return (
     <div className="chat-container glass-panel">
       
-      {/* 🟢 WAITING SCREEN OVERLAY (With Facts) */}
       {connectionStatus === "waiting" && (
         <div style={styles.waitingOverlay}>
             <div className="pulse-ring" style={{width:'80px', height:'80px', border:'3px solid #67e8f9'}}></div>
             <h2 style={{marginTop: '30px', zIndex: 2}}>Searching for a Partner...</h2>
             <p style={{color:'#aaa', marginBottom:'40px', zIndex:2}}>Please wait, connecting you to a peer.</p>
-            
             <div style={styles.factBox}>
                 <div style={{display:'flex', alignItems:'center', gap:'10px', marginBottom:'10px', color:'#fde047'}}>
                     <FaLightbulb /> <span style={{fontSize:'0.9rem', fontWeight:'bold'}}>DID YOU KNOW?</span>
                 </div>
                 <p style={{fontStyle: 'italic', fontSize: '1.1rem', lineHeight:'1.5'}}>"{currentFact}"</p>
             </div>
-            
             <button onClick={leaveChat} style={{...styles.exitBtn, marginTop:'30px', zIndex:2}}>Cancel Search</button>
         </div>
       )}
 
       {isInCall && <VoiceCall roomId={roomId} isInitiator={isInitiator} onClose={() => setIsInCall(false)} />}
 
+      {/* 🟢 FIXED: Toast only shows if NOT in call */}
       {incomingCall && !isInCall && (
          <div className="incoming-call-toast">
             <div className="pulse-circle"></div>
@@ -222,42 +228,19 @@ const ChatRoom = () => {
   );
 };
 
-// 🟢 NEW STYLES FOR OVERLAY
 const styles = {
     waitingOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        background: 'rgba(15, 12, 41, 0.98)', // Almost opaque background
-        zIndex: 50, // Covers the chat
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '20px',
-        textAlign: 'center'
+        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+        background: 'rgba(15, 12, 41, 0.98)', zIndex: 50,
+        display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', textAlign: 'center'
     },
     factBox: {
-        background: 'rgba(255, 255, 255, 0.05)',
-        padding: '25px',
-        borderRadius: '15px',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        maxWidth: '400px',
-        width: '90%',
-        zIndex: 2
+        background: 'rgba(255, 255, 255, 0.05)', padding: '25px', borderRadius: '15px',
+        border: '1px solid rgba(255, 255, 255, 0.1)', maxWidth: '400px', width: '90%', zIndex: 2
     },
     exitBtn: {
-        background: 'transparent',
-        border: '1px solid #ef4444',
-        color: '#ef4444',
-        padding: '10px 20px',
-        borderRadius: '20px',
-        cursor: 'pointer',
-        fontSize: '0.9rem',
-        fontWeight: 'bold',
-        transition: 'all 0.3s'
+        background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '10px 20px',
+        borderRadius: '20px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', transition: 'all 0.3s'
     }
 };
 
