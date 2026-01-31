@@ -6,12 +6,11 @@ import { db } from '../firebaseConfig';
 import { ref, push, get, remove, set } from "firebase/database";
 
 const PSYCH_FACTS = [
-  "Talking to a stranger can actually boost your well-being more than you think.",
+  "Talking to a stranger can actually boost your well-being.",
   "Journaling your feelings reduces stress by 40%.",
   "The color blue has a calming effect on the brain.",
   "Hugging for 20 seconds releases oxytocin, the trust hormone.",
-  "Listening to music can significantly reduce anxiety.",
-  "Helping others releases endorphins, making you feel happier."
+  "Listening to music can significantly reduce anxiety."
 ];
 
 const Lobby = () => {
@@ -19,7 +18,6 @@ const Lobby = () => {
   const [username, setUsername] = useState("Friend");
   const [showSOS, setShowSOS] = useState(false); 
   
-  // 🟢 SEARCHING STATE & FACTS
   const [isSearching, setIsSearching] = useState(false);
   const [currentFact, setCurrentFact] = useState(PSYCH_FACTS[0]);
 
@@ -28,13 +26,11 @@ const Lobby = () => {
     if (storedName) setUsername(storedName);
   }, []);
 
-  // Cycle facts while searching
   useEffect(() => {
     let interval;
     if (isSearching) {
         interval = setInterval(() => {
-            const randomFact = PSYCH_FACTS[Math.floor(Math.random() * PSYCH_FACTS.length)];
-            setCurrentFact(randomFact);
+            setCurrentFact(PSYCH_FACTS[Math.floor(Math.random() * PSYCH_FACTS.length)]);
         }, 3000);
     }
     return () => clearInterval(interval);
@@ -45,13 +41,17 @@ const Lobby = () => {
     navigate('/');
   };
 
+  const handleLegal = (type) => {
+    if (type === "Privacy") alert("🔒 PRIVACY: Chats are anonymous. No data is shared.");
+    else alert("📜 TERMS: Be respectful. This is not a substitute for professional help.");
+  };
+
   const findMatch = async () => {
-    setIsSearching(true); // 🟢 SHOW LOADING SCREEN
+    setIsSearching(true); 
     const roomsRef = ref(db, 'waiting_rooms');
 
     try {
         const snapshot = await get(roomsRef);
-        
         if (snapshot.exists()) {
             const rooms = snapshot.val();
             const foundRoomId = Object.keys(rooms)[0];
@@ -65,7 +65,7 @@ const Lobby = () => {
         }
     } catch (error) {
         console.error("Firebase Error:", error);
-        alert("Connection failed. Please check your internet.");
+        alert("Connection failed.");
         setIsSearching(false);
     }
   };
@@ -74,11 +74,11 @@ const Lobby = () => {
     <div style={styles.appContainer}>
       {showSOS && <CrisisModal onClose={() => setShowSOS(false)} />}
 
-      {/* 🟢 LOADING OVERLAY WITH FACTS */}
+      {/* LOADING OVERLAY */}
       {isSearching && (
         <div style={styles.loadingOverlay}>
-            <FaSpinner className="spinner" size={50} color="#67e8f9" />
-            <h2 style={{marginTop: '20px'}}>Finding a Partner...</h2>
+            <div className="pulse-ring" style={{width:'80px', height:'80px', border:'3px solid #67e8f9'}}></div>
+            <h2 style={{marginTop: '20px', zIndex: 2}}>Finding a Partner...</h2>
             <div style={styles.factBox}>
                 <p style={{fontSize: '0.9rem', color: '#aaa', marginBottom: '5px'}}>DID YOU KNOW?</p>
                 <p style={{fontStyle: 'italic', fontSize: '1.1rem'}}>"{currentFact}"</p>
@@ -96,7 +96,7 @@ const Lobby = () => {
         </div>
       </div>
 
-      {/* MAIN CONTENT */}
+      {/* SCROLLABLE CONTENT */}
       <div style={styles.scrollableMain}>
         <div style={styles.contentWrapper}>
           <div style={styles.textCenter}>
@@ -108,7 +108,7 @@ const Lobby = () => {
             <div className="lobby-card" style={styles.glassCard} onClick={findMatch}>
               <div style={{...styles.iconGlow, color: '#f472b6', boxShadow: '0 0 20px rgba(244, 114, 182, 0.4)'}}><FaUsers size={32} /></div>
               <h3>Peer Support</h3>
-              <p style={styles.cardDesc}>Connect with a human listener.</p>
+              <p style={styles.cardDesc}>{isSearching ? "Connecting..." : "Connect with a human listener."}</p>
             </div>
 
             <div className="lobby-card" style={styles.glassCard} onClick={() => navigate('/nova')}>
@@ -132,20 +132,35 @@ const Lobby = () => {
         </div>
       </div>
       
-      {/* FOOTER */}
+      {/* 🟢 RESTORED FOOTER */}
       <div style={styles.footer}>
-         Made with <FaHeart color="#ff6b6b" /> by Sakshi
+        <div style={styles.footerTop}>
+          <p style={{margin: 0, fontSize: '0.9rem'}}>
+            Made with <FaHeart color="#ff6b6b" style={{margin: '0 5px'}} /> by <b style={{color: '#67e8f9'}}>Sakshi</b>
+          </p>
+          <span style={styles.version}>v1.0.0 • 2026 © SilentEcho</span>
+        </div>
+
+        <div style={styles.footerLinks}>
+          <span style={styles.link} onClick={() => handleLegal("Privacy")}>Privacy Policy</span>
+          <span style={{color: '#444'}}>|</span>
+          <span style={styles.link} onClick={() => handleLegal("Terms")}>Terms of Service</span>
+        </div>
+
+        <p style={styles.disclaimer}>
+          ⚠️ Not a crisis service. Call <b>112</b> for emergencies.
+        </p>
       </div>
     </div>
   );
 };
 
-// STYLES (Includes new Loading Overlay)
+// 🟢 RESTORED STYLES
 const styles = {
   appContainer: { position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)', color: 'white', display: 'flex', flexDirection: 'column' },
   loadingOverlay: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(15, 12, 41, 0.95)', zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backdropFilter: 'blur(10px)' },
-  factBox: { marginTop: '30px', padding: '20px', borderLeft: '4px solid #67e8f9', background: 'rgba(255,255,255,0.05)', maxWidth: '400px', textAlign: 'center' },
-  header: { height: '70px', padding: '0 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.3)' },
+  factBox: { marginTop: '30px', padding: '20px', borderLeft: '4px solid #67e8f9', background: 'rgba(255,255,255,0.05)', maxWidth: '400px', textAlign: 'center', zIndex: 2 },
+  header: { height: '70px', padding: '0 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.3)', flexShrink: 0 },
   logo: { background: 'linear-gradient(to right, #67e8f9, #f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontSize: '1.5rem' },
   userInfo: { display: 'flex', alignItems: 'center', gap: '15px' },
   sosBtn: { background: '#ef4444', color: 'white', border: 'none', padding: '6px 15px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' },
@@ -159,7 +174,14 @@ const styles = {
   glassCard: { background: 'rgba(255, 255, 255, 0.05)', padding: '30px', borderRadius: '20px', cursor: 'pointer', border: '1px solid rgba(255, 255, 255, 0.1)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' },
   iconGlow: { marginBottom: '15px', padding: '12px', borderRadius: '50%', background: 'rgba(0,0,0,0.2)' },
   cardDesc: { color: '#888', fontSize: '0.85rem', marginTop: '8px' },
-  footer: { padding: '15px', textAlign: 'center', color: '#666', fontSize: '0.8rem' }
+  
+  // 🟢 FIXED FOOTER STYLES
+  footer: { padding: '15px', textAlign: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(15px)', borderTop: '1px solid rgba(255,255,255,0.05)', color: '#888', display: 'flex', flexDirection: 'column', gap: '8px', zIndex: 100, flexShrink: 0 },
+  footerTop: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', flexWrap: 'wrap' },
+  version: { fontSize: '0.75rem', color: '#555', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '10px' },
+  footerLinks: { display: 'flex', justifyContent: 'center', gap: '15px', fontSize: '0.8rem', color: '#aaa' },
+  link: { cursor: 'pointer', transition: 'color 0.2s', textDecoration: 'underline' },
+  disclaimer: { margin: 0, fontSize: '0.7rem', color: '#666' }
 };
 
 export default Lobby;
