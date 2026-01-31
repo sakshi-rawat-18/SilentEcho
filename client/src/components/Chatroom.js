@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { FaUserSecret, FaPaperPlane, FaSignOutAlt, FaCircle, FaPhoneAlt, FaSpinner, FaLightbulb } from 'react-icons/fa';
+import { FaUserSecret, FaPaperPlane, FaSignOutAlt, FaCircle, FaPhoneAlt, FaSpinner, FaLightbulb, FaCheck, FaTimes } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { db } from '../firebaseConfig';
 import { ref, push, onValue, off, remove, set, onDisconnect } from "firebase/database"; 
@@ -38,7 +38,6 @@ const ChatRoom = () => {
 
   const [myId] = useState(localStorage.getItem("chat_username") || Math.random().toString(36).substr(2, 9));
 
-  // FORCE HIDE POPUP IF I AM IN A CALL
   useEffect(() => {
     if (isInCall) setIncomingCall(false);
   }, [isInCall]);
@@ -88,24 +87,15 @@ const ChatRoom = () => {
       }
     });
 
-    // 🟢 CALL LISTENER (FIXED)
     const callRef = ref(db, `calls/${roomId}`);
     const callListener = onValue(callRef, (snapshot) => {
         const data = snapshot.val();
         
-        // 1. INCOMING CALL LOGIC
         if (data && data.offer && !isInCall) {
-            // Parse the offer to check WHO sent it
             const offerData = JSON.parse(data.offer);
-            
-            // 🟢 CRITICAL CHECK: Only show popup if ID does NOT match mine
-            if (offerData.from !== myId) {
-                setIncomingCall(true);
-            }
+            if (offerData.from !== myId) setIncomingCall(true);
         }
 
-        // 2. AUTO-HANGUP LOGIC
-        // If data is deleted (someone hung up) AND I am in a call -> End it.
         if (!data && isInCall) {
             setIsInCall(false);
             setIncomingCall(false);
@@ -120,7 +110,7 @@ const ChatRoom = () => {
         off(callRef, callListener);
     };
     // eslint-disable-next-line
-  }, [roomId, navigate, isInCall, isInitiator, myId]); // Added myId dependency
+  }, [roomId, navigate, isInCall, isInitiator, myId]);
 
   const handleSend = async () => {
     if (!input.trim() || connectionStatus !== "connected") return;
@@ -138,6 +128,22 @@ const ChatRoom = () => {
   const startCall = () => { setIsInitiator(true); setIsInCall(true); };
   const acceptCall = () => { setIncomingCall(false); setIsInitiator(false); setIsInCall(true); };
   const declineCall = async () => { setIncomingCall(false); await remove(ref(db, `calls/${roomId}`)); };
+
+  const handleCallEnded = async (duration) => {
+      setIsInCall(false);
+      setIncomingCall(false);
+      setIsInitiator(false);
+
+      if (duration) {
+          const messagesRef = ref(db, `chats/${roomId}`);
+          await push(messagesRef, { 
+              sender: "System", 
+              text: `📞 Call ended: ${duration}`, 
+              system: true, 
+              timestamp: Date.now() 
+          });
+      }
+  };
 
   const getStatusUI = () => {
       if (connectionStatus === "waiting") return { color: '#fde047', text: "Waiting...", icon: <FaSpinner className="spinner"/> };
@@ -165,16 +171,30 @@ const ChatRoom = () => {
         </div>
       )}
 
-      {/* 🟢 PASS MY ID TO VOICECALL */}
-      {isInCall && <VoiceCall roomId={roomId} isInitiator={isInitiator} myId={myId} onClose={() => setIsInCall(false)} />}
+      {isInCall && (
+        <VoiceCall 
+            roomId={roomId} 
+            isInitiator={isInitiator} 
+            myId={myId} 
+            onCallEnded={handleCallEnded} 
+        />
+      )}
 
+      {/* 🟢 FIXED: SPACIOUS INCOMING CALL POPUP */}
       {incomingCall && !isInCall && (
-         <div className="incoming-call-toast">
+         <div className="incoming-call-toast" style={styles.toast}>
             <div className="pulse-circle"></div>
-            <span>📞 Incoming Call...</span>
-            <div className="call-actions">
-                <button onClick={acceptCall} className="accept-btn">Accept</button>
-                <button onClick={declineCall} className="reject-btn">Decline</button>
+            <span style={{fontWeight:'bold', marginBottom:'10px', display:'block'}}>📞 Incoming Call...</span>
+            
+            <div className="call-actions" style={{display:'flex', gap:'15px', justifyContent:'center'}}>
+                {/* Accept Button */}
+                <button onClick={acceptCall} style={{...styles.actionBtn, background:'#10b981'}}>
+                    <FaCheck /> Accept
+                </button>
+                {/* Decline Button */}
+                <button onClick={declineCall} style={{...styles.actionBtn, background:'#ef4444'}}>
+                    <FaTimes /> Decline
+                </button>
             </div>
          </div>
       )}
@@ -233,6 +253,7 @@ const ChatRoom = () => {
   );
 };
 
+// 🟢 IMPROVED STYLES
 const styles = {
     waitingOverlay: {
         position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
@@ -246,6 +267,17 @@ const styles = {
     exitBtn: {
         background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '10px 20px',
         borderRadius: '20px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', transition: 'all 0.3s'
+    },
+    // NEW TOAST STYLES
+    toast: {
+        position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.1)', 
+        backdropFilter: 'blur(10px)', padding: '15px', borderRadius: '15px', 
+        border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 5px 15px rgba(0,0,0,0.3)', zIndex: 100,
+        minWidth: '200px', textAlign: 'center'
+    },
+    actionBtn: {
+        border: 'none', padding: '8px 15px', borderRadius: '20px', color: 'white', 
+        cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px'
     }
 };
 

@@ -5,17 +5,17 @@ import { ref, onValue, set, remove, off } from "firebase/database";
 import { FaMicrophone, FaMicrophoneSlash, FaPhoneSlash, FaVolumeUp } from 'react-icons/fa';
 import '../App.css'; 
 
-const VoiceCall = ({ roomId, isInitiator, myId, onClose }) => {
+const VoiceCall = ({ roomId, isInitiator, myId, onCallEnded }) => {
   const [stream, setStream] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [callStatus, setCallStatus] = useState("Connecting...");
-  const [seconds, setSeconds] = useState(0); // 🟢 Timer State
+  const [seconds, setSeconds] = useState(0); 
   
   const userVideo = useRef();
   const partnerVideo = useRef();
   const peerRef = useRef();
 
-  // 🟢 TIMER LOGIC
+  // TIMER LOGIC
   useEffect(() => {
     let interval = null;
     if (callStatus === "Connected") {
@@ -26,7 +26,6 @@ const VoiceCall = ({ roomId, isInitiator, myId, onClose }) => {
     return () => clearInterval(interval);
   }, [callStatus]);
 
-  // Format time (e.g., 65s -> 01:05)
   const formatTime = (totalSeconds) => {
     const min = Math.floor(totalSeconds / 60);
     const sec = totalSeconds % 60;
@@ -49,7 +48,6 @@ const VoiceCall = ({ roomId, isInitiator, myId, onClose }) => {
 
       peer.on('signal', (data) => {
         const path = isInitiator ? 'offer' : 'answer';
-        // 🟢 SEND MY ID WITH THE SIGNAL
         const payload = { signal: data, from: myId }; 
         set(ref(db, `calls/${roomId}/${path}`), JSON.stringify(payload));
       });
@@ -64,14 +62,12 @@ const VoiceCall = ({ roomId, isInitiator, myId, onClose }) => {
 
       peerRef.current = peer;
 
-      // LISTEN FOR SIGNAL
       const partnerPath = isInitiator ? 'answer' : 'offer';
       callRef = ref(db, `calls/${roomId}/${partnerPath}`);
 
       callListener = onValue(callRef, (snapshot) => {
         const data = snapshot.val();
         if (data && !peer.destroyed) {
-           // 🟢 PARSE THE NEW PAYLOAD FORMAT
            const parsed = JSON.parse(data);
            peer.signal(parsed.signal); 
         }
@@ -93,9 +89,10 @@ const VoiceCall = ({ roomId, isInitiator, myId, onClose }) => {
     }
   };
 
+  // 🟢 NEW: END CALL AND SEND DURATION
   const endCall = async () => {
-      await remove(ref(db, `calls/${roomId}`)); // 🟢 This kills the call for BOTH
-      onClose(); 
+      await remove(ref(db, `calls/${roomId}`)); 
+      onCallEnded(formatTime(seconds)); // Pass the time back!
   };
 
   const overlayStyle = {
@@ -113,7 +110,6 @@ const VoiceCall = ({ roomId, isInitiator, myId, onClose }) => {
         
         <h2 style={{marginBottom: '5px'}}>{callStatus}</h2>
         
-        {/* 🟢 SHOW TIMER IF CONNECTED */}
         {callStatus === "Connected" && (
             <p style={{fontSize: '1.2rem', fontWeight: 'bold', color: '#4ade80', marginBottom:'10px'}}>
                 {formatTime(seconds)}
