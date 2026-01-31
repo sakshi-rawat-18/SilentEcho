@@ -5,13 +5,33 @@ import { ref, onValue, set, remove, off } from "firebase/database";
 import { FaMicrophone, FaMicrophoneSlash, FaPhoneSlash, FaVolumeUp } from 'react-icons/fa';
 import '../App.css'; 
 
-const VoiceCall = ({ roomId, isInitiator, onClose }) => {
+const VoiceCall = ({ roomId, isInitiator, myId, onClose }) => {
   const [stream, setStream] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [callStatus, setCallStatus] = useState("Connecting...");
+  const [seconds, setSeconds] = useState(0); // 🟢 Timer State
+  
   const userVideo = useRef();
   const partnerVideo = useRef();
   const peerRef = useRef();
+
+  // 🟢 TIMER LOGIC
+  useEffect(() => {
+    let interval = null;
+    if (callStatus === "Connected") {
+        interval = setInterval(() => {
+            setSeconds(prev => prev + 1);
+        }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [callStatus]);
+
+  // Format time (e.g., 65s -> 01:05)
+  const formatTime = (totalSeconds) => {
+    const min = Math.floor(totalSeconds / 60);
+    const sec = totalSeconds % 60;
+    return `${min < 10 ? '0' : ''}${min}:${sec < 10 ? '0' : ''}${sec}`;
+  };
 
   useEffect(() => {
     let callRef = null;
@@ -29,7 +49,9 @@ const VoiceCall = ({ roomId, isInitiator, onClose }) => {
 
       peer.on('signal', (data) => {
         const path = isInitiator ? 'offer' : 'answer';
-        set(ref(db, `calls/${roomId}/${path}`), JSON.stringify(data));
+        // 🟢 SEND MY ID WITH THE SIGNAL
+        const payload = { signal: data, from: myId }; 
+        set(ref(db, `calls/${roomId}/${path}`), JSON.stringify(payload));
       });
 
       peer.on('stream', (partnerStream) => {
@@ -49,16 +71,17 @@ const VoiceCall = ({ roomId, isInitiator, onClose }) => {
       callListener = onValue(callRef, (snapshot) => {
         const data = snapshot.val();
         if (data && !peer.destroyed) {
-           peer.signal(JSON.parse(data));
+           // 🟢 PARSE THE NEW PAYLOAD FORMAT
+           const parsed = JSON.parse(data);
+           peer.signal(parsed.signal); 
         }
       });
     });
 
-    // 🟢 CLEANUP: This runs when the call ends
     return () => {
        if(stream) stream.getTracks().forEach(track => track.stop());
        if(peerRef.current) peerRef.current.destroy();
-       if(callRef && callListener) off(callRef, callListener); // STOP LISTENING
+       if(callRef && callListener) off(callRef, callListener);
     };
     // eslint-disable-next-line
   }, []);
@@ -71,24 +94,14 @@ const VoiceCall = ({ roomId, isInitiator, onClose }) => {
   };
 
   const endCall = async () => {
-      await remove(ref(db, `calls/${roomId}`)); // Delete call data
+      await remove(ref(db, `calls/${roomId}`)); // 🟢 This kills the call for BOTH
       onClose(); 
   };
 
-  // 🟢 FULL SCREEN OVERLAY STYLE
   const overlayStyle = {
-      position: 'fixed',
-      top: 0, 
-      left: 0,
-      width: '100vw',
-      height: '100vh',
-      background: 'linear-gradient(135deg, #1f2937, #111827)',
-      zIndex: 10000, // Top of everything
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: 'white'
+      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+      background: 'linear-gradient(135deg, #1f2937, #111827)', zIndex: 10000,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white'
   };
 
   return (
@@ -97,7 +110,16 @@ const VoiceCall = ({ roomId, isInitiator, onClose }) => {
         <div className="caller-avatar" style={{marginBottom: '20px'}}>
             <FaVolumeUp size={50} color="#60a5fa" />
         </div>
-        <h2 style={{marginBottom: '10px'}}>{callStatus}</h2>
+        
+        <h2 style={{marginBottom: '5px'}}>{callStatus}</h2>
+        
+        {/* 🟢 SHOW TIMER IF CONNECTED */}
+        {callStatus === "Connected" && (
+            <p style={{fontSize: '1.2rem', fontWeight: 'bold', color: '#4ade80', marginBottom:'10px'}}>
+                {formatTime(seconds)}
+            </p>
+        )}
+
         <p style={{color: '#9ca3af', marginBottom: '40px'}}>{isMuted ? "You are muted" : "Speaking..."}</p>
         
         <div className="call-controls" style={{display: 'flex', gap: '20px'}}>

@@ -38,11 +38,9 @@ const ChatRoom = () => {
 
   const [myId] = useState(localStorage.getItem("chat_username") || Math.random().toString(36).substr(2, 9));
 
-  // 🟢 SAFETY CHECK: If in call, FORCE hide incoming popup
+  // FORCE HIDE POPUP IF I AM IN A CALL
   useEffect(() => {
-    if (isInCall) {
-        setIncomingCall(false);
-    }
+    if (isInCall) setIncomingCall(false);
   }, [isInCall]);
 
   useEffect(() => {
@@ -90,17 +88,24 @@ const ChatRoom = () => {
       }
     });
 
-    // LISTEN FOR CALLS
+    // 🟢 CALL LISTENER (FIXED)
     const callRef = ref(db, `calls/${roomId}`);
     const callListener = onValue(callRef, (snapshot) => {
         const data = snapshot.val();
         
-        // Incoming Call Logic
-        if (data && data.offer && !isInitiator && !isInCall) {
-            setIncomingCall(true);
+        // 1. INCOMING CALL LOGIC
+        if (data && data.offer && !isInCall) {
+            // Parse the offer to check WHO sent it
+            const offerData = JSON.parse(data.offer);
+            
+            // 🟢 CRITICAL CHECK: Only show popup if ID does NOT match mine
+            if (offerData.from !== myId) {
+                setIncomingCall(true);
+            }
         }
 
-        // Auto-Hangup Logic: If data is gone, and I am in call, close it
+        // 2. AUTO-HANGUP LOGIC
+        // If data is deleted (someone hung up) AND I am in a call -> End it.
         if (!data && isInCall) {
             setIsInCall(false);
             setIncomingCall(false);
@@ -115,7 +120,7 @@ const ChatRoom = () => {
         off(callRef, callListener);
     };
     // eslint-disable-next-line
-  }, [roomId, navigate, isInCall, isInitiator]);
+  }, [roomId, navigate, isInCall, isInitiator, myId]); // Added myId dependency
 
   const handleSend = async () => {
     if (!input.trim() || connectionStatus !== "connected") return;
@@ -160,9 +165,9 @@ const ChatRoom = () => {
         </div>
       )}
 
-      {isInCall && <VoiceCall roomId={roomId} isInitiator={isInitiator} onClose={() => setIsInCall(false)} />}
+      {/* 🟢 PASS MY ID TO VOICECALL */}
+      {isInCall && <VoiceCall roomId={roomId} isInitiator={isInitiator} myId={myId} onClose={() => setIsInCall(false)} />}
 
-      {/* 🟢 FIXED: Toast only shows if NOT in call */}
       {incomingCall && !isInCall && (
          <div className="incoming-call-toast">
             <div className="pulse-circle"></div>
