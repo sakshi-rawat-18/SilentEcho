@@ -2,9 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { FaUserSecret, FaPaperPlane, FaSignOutAlt, FaCircle, FaPhoneAlt } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { db } from '../firebaseConfig';
-import { ref, push, onValue, off, set } from "firebase/database";
+// 🟢 FIX: Removed 'set' from this line because we don't use it here
+import { ref, push, onValue, off } from "firebase/database"; 
 import { encryptMessage, decryptMessage } from '../utils/encryption';
-import VoiceCall from './VoiceCall'; // 🟢 Import the new component
+import VoiceCall from './VoiceCall'; 
 import '../App.css'; 
 
 const ChatRoom = () => {
@@ -19,7 +20,7 @@ const ChatRoom = () => {
   const [input, setInput] = useState("");
   const [partnerActive, setPartnerActive] = useState(true);
   
-  // 🟢 CALL STATES
+  // CALL STATES
   const [isInCall, setIsInCall] = useState(false);
   const [isInitiator, setIsInitiator] = useState(false);
   const [incomingCall, setIncomingCall] = useState(false);
@@ -53,7 +54,7 @@ const ChatRoom = () => {
       }
     });
 
-    // 🟢 2. LISTEN FOR INCOMING CALLS
+    // 2. LISTEN FOR INCOMING CALLS
     const callRef = ref(db, `calls/${roomId}/offer`);
     const callListener = onValue(callRef, (snapshot) => {
         if (snapshot.exists() && !isInitiator && !isInCall) {
@@ -81,13 +82,13 @@ const ChatRoom = () => {
     navigate('/lobby'); 
   };
 
-  // 🟢 START CALL
+  // START CALL
   const startCall = () => {
       setIsInitiator(true);
       setIsInCall(true);
   };
 
-  // 🟢 ACCEPT CALL
+  // ACCEPT CALL
   const acceptCall = () => {
       setIncomingCall(false);
       setIsInitiator(false); // Receiver
@@ -97,7 +98,7 @@ const ChatRoom = () => {
   return (
     <div className="chat-container glass-panel">
       
-      {/* 🟢 FULL SCREEN CALL OVERLAY */}
+      {/* FULL SCREEN CALL OVERLAY */}
       {isInCall && (
         <VoiceCall 
             roomId={roomId} 
@@ -106,7 +107,7 @@ const ChatRoom = () => {
         />
       )}
 
-      {/* 🟢 INCOMING CALL POPUP */}
+      {/* INCOMING CALL POPUP */}
       {incomingCall && !isInCall && (
          <div className="incoming-call-toast">
             <span>📞 Incoming Call...</span>
