@@ -1,114 +1,98 @@
 import React, { useEffect, useState, useRef } from 'react';
-import Peer from 'simple-peer';
-import { FaPhoneSlash, FaMicrophone, FaMicrophoneSlash } from 'react-icons/fa';
-import '../App.css'; // Make sure your CSS is imported
+import SimplePeer from 'simple-peer'; // You might need to run: npm install simple-peer
+import { db } from '../firebaseConfig';
+import { ref, onValue, set, remove } from "firebase/database";
+import { FaMicrophone, FaMicrophoneSlash, FaPhoneSlash, FaVolumeUp } from 'react-icons/fa';
+import '../App.css'; 
 
-const VoiceCall = ({ socket, roomId, isInitiator, callerSignal, onClose }) => {
+const VoiceCall = ({ roomId, isInitiator, onClose }) => {
   const [stream, setStream] = useState(null);
-  const [callAccepted, setCallAccepted] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  
-  const myVideo = useRef();
+  const [callStatus, setCallStatus] = useState("Connecting...");
   const userVideo = useRef();
-  const connectionRef = useRef();
+  const partnerVideo = useRef();
+  const peerRef = useRef();
 
   useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ video: false, audio: true })
-      .then((currentStream) => {
-        setStream(currentStream);
-        if (myVideo.current) myVideo.current.srcObject = currentStream;
+    // 1. Get Microphone Access
+    navigator.mediaDevices.getUserMedia({ video: false, audio: true }).then((currentStream) => {
+      setStream(currentStream);
+      if (userVideo.current) userVideo.current.srcObject = currentStream;
 
-        if (isInitiator) {
-          // 🟢 INITIATOR: Create the peer and send signal to ROOM
-          const peer = new Peer({ initiator: true, trickle: false, stream: currentStream });
+      // 2. Initialize Peer Connection
+      const peer = new SimplePeer({
+        initiator: isInitiator,
+        trickle: false,
+        stream: currentStream,
+      });
 
-          peer.on('signal', (data) => {
-            // 🟢 CRITICAL FIX: Send 'roomId' so the server knows where to broadcast!
-            socket.emit("call_user", {
-                roomId: roomId, // <--- THIS WAS MISSING
-                signalData: data,
-                from: socket.id 
-            });
-          });
+      // 3. LISTEN: When we generate a signal, save it to Firebase
+      peer.on('signal', (data) => {
+        const path = isInitiator ? 'offer' : 'answer';
+        set(ref(db, `calls/${roomId}/${path}`), JSON.stringify(data));
+      });
 
-          peer.on('stream', (currentStream) => {
-            if (userVideo.current) userVideo.current.srcObject = currentStream;
-          });
+      // 4. CONNECT: When they send a signal, accept it
+      peer.on('stream', (partnerStream) => {
+        if (partnerVideo.current) partnerVideo.current.srcObject = partnerStream;
+        setCallStatus("Connected");
+        // Play audio
+        const audio = new Audio();
+        audio.srcObject = partnerStream;
+        audio.play();
+      });
 
-          socket.on("call_accepted", (signal) => {
-             setCallAccepted(true);
-             peer.signal(signal);
-          });
+      peerRef.current = peer;
 
-          connectionRef.current = peer;
+      // 5. FIREBASE LISTENER: Watch for their signal
+      const partnerPath = isInitiator ? 'answer' : 'offer';
+      const callRef = ref(db, `calls/${roomId}/${partnerPath}`);
 
-        } else {
-          // 🟢 RECEIVER: Answer the call
-          const peer = new Peer({ initiator: false, trickle: false, stream: currentStream });
-
-          peer.on('signal', (data) => {
-            socket.emit("answer_call", { 
-                signal: data, 
-                roomId: roomId // <--- THIS WAS MISSING
-            });
-          });
-
-          peer.on('stream', (currentStream) => {
-            if (userVideo.current) userVideo.current.srcObject = currentStream;
-          });
-
-          // If we have an incoming signal, accept it
-          if (callerSignal) {
-              peer.signal(callerSignal);
-          }
-          
-          connectionRef.current = peer;
+      onValue(callRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data && !peer.destroyed) {
+           peer.signal(JSON.parse(data));
         }
       });
-      
-      // Cleanup when component closes
-      return () => {
-          socket.off("call_accepted");
-          if(connectionRef.current) connectionRef.current.destroy();
-      };
-      // eslint-disable-next-line
+    });
+
+    return () => {
+       // Cleanup on exit
+       if(stream) stream.getTracks().forEach(track => track.stop());
+       if(peerRef.current) peerRef.current.destroy();
+       remove(ref(db, `calls/${roomId}`)); // Clear data
+    };
+    // eslint-disable-next-line
   }, []);
 
   const toggleMute = () => {
-      if (stream) {
-          stream.getAudioTracks()[0].enabled = !stream.getAudioTracks()[0].enabled;
-          setIsMuted(!isMuted);
-      }
+    if (stream) {
+        stream.getAudioTracks()[0].enabled = !stream.getAudioTracks()[0].enabled;
+        setIsMuted(!isMuted);
+    }
   };
 
   return (
-    <div className="video-container">
-      <div className="video-box">
-          {/* Audio elements are hidden but active */}
-          <audio playsInline muted ref={myVideo} autoPlay />
-          <audio playsInline ref={userVideo} autoPlay />
-          
-          <div className="call-animation">
-             <div className="pulse-ring"></div>
-             <div className="pulse-ring delay"></div>
-             <div className="avatar-circle">
-                {callAccepted ? "🗣️" : "📞"}
-             </div>
-          </div>
-
-          <div className="call-status">
-             {callAccepted ? "Connected" : "Calling..."}
-          </div>
-
-          <div className="call-controls">
-            <button onClick={toggleMute} className={`control-btn ${isMuted ? 'muted' : ''}`}>
+    <div className="voice-call-overlay">
+        <div className="pulse-ring"></div>
+        <div className="caller-avatar">
+            <FaVolumeUp size={40} />
+        </div>
+        <h3>{callStatus}</h3>
+        <p>{isMuted ? "You are muted" : "Speaking..."}</p>
+        
+        <div className="call-controls">
+            <button onClick={toggleMute} className={`icon-btn ${isMuted ? 'muted' : ''}`}>
                 {isMuted ? <FaMicrophoneSlash /> : <FaMicrophone />}
             </button>
-            <button onClick={onClose} className="control-btn end-call">
+            <button onClick={onClose} className="icon-btn hangup">
                 <FaPhoneSlash />
             </button>
-          </div>
-      </div>
+        </div>
+        
+        {/* Hidden Audio Elements */}
+        <audio ref={userVideo} muted autoPlay />
+        <audio ref={partnerVideo} autoPlay />
     </div>
   );
 };
