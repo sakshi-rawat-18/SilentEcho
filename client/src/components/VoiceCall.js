@@ -52,12 +52,19 @@ const VoiceCall = ({ roomId, isInitiator, myId, onCallEnded }) => {
         set(ref(db, `calls/${roomId}/${path}`), JSON.stringify(payload));
       });
 
+      // 🟢 FIX 1: UPDATE STATUS ON STREAM
       peer.on('stream', (partnerStream) => {
         if (partnerVideo.current) partnerVideo.current.srcObject = partnerStream;
-        setCallStatus("Connected");
+        setCallStatus("Connected"); // Try setting it here
         const audio = new Audio();
         audio.srcObject = partnerStream;
         audio.play();
+      });
+
+      // 🟢 FIX 2: FORCE UPDATE STATUS ON CONNECT (Double Check)
+      // This ensures that even if 'stream' lags, 'connect' will trigger the timer.
+      peer.on('connect', () => {
+        setCallStatus("Connected");
       });
 
       peerRef.current = peer;
@@ -89,10 +96,9 @@ const VoiceCall = ({ roomId, isInitiator, myId, onCallEnded }) => {
     }
   };
 
-  // 🟢 NEW: END CALL AND SEND DURATION
   const endCall = async () => {
       await remove(ref(db, `calls/${roomId}`)); 
-      onCallEnded(formatTime(seconds)); // Pass the time back!
+      onCallEnded(formatTime(seconds)); 
   };
 
   const overlayStyle = {
@@ -110,10 +116,19 @@ const VoiceCall = ({ roomId, isInitiator, myId, onCallEnded }) => {
         
         <h2 style={{marginBottom: '5px'}}>{callStatus}</h2>
         
+        {/* 🟢 TIMER DISPLAY */}
         {callStatus === "Connected" && (
-            <p style={{fontSize: '1.2rem', fontWeight: 'bold', color: '#4ade80', marginBottom:'10px'}}>
+            <div style={{
+                fontSize: '1.5rem', 
+                fontWeight: 'bold', 
+                color: '#4ade80', 
+                marginBottom:'10px',
+                background: 'rgba(0,0,0,0.3)',
+                padding: '5px 15px',
+                borderRadius: '10px'
+            }}>
                 {formatTime(seconds)}
-            </p>
+            </div>
         )}
 
         <p style={{color: '#9ca3af', marginBottom: '40px'}}>{isMuted ? "You are muted" : "Speaking..."}</p>

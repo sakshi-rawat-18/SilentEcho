@@ -38,10 +38,12 @@ const ChatRoom = () => {
 
   const [myId] = useState(localStorage.getItem("chat_username") || Math.random().toString(36).substr(2, 9));
 
+  // 🟢 SAFETY: Hide popup if I am already in a call
   useEffect(() => {
     if (isInCall) setIncomingCall(false);
   }, [isInCall]);
 
+  // CYCLE FACTS
   useEffect(() => {
     let interval;
     if (connectionStatus === "waiting") {
@@ -59,10 +61,12 @@ const ChatRoom = () => {
   useEffect(() => {
     if (!roomId) { navigate('/lobby'); return; }
 
+    // 1. PRESENCE
     const myPresenceRef = ref(db, `rooms/${roomId}/users/${myId}`);
     set(myPresenceRef, true);
     onDisconnect(myPresenceRef).remove();
 
+    // 2. CHECK USERS
     const usersRef = ref(db, `rooms/${roomId}/users`);
     const usersListener = onValue(usersRef, (snapshot) => {
         if (snapshot.exists()) {
@@ -72,6 +76,7 @@ const ChatRoom = () => {
         }
     });
 
+    // 3. MESSAGES
     const messagesRef = ref(db, `chats/${roomId}`);
     const msgListener = onValue(messagesRef, (snapshot) => {
       const data = snapshot.val();
@@ -87,15 +92,19 @@ const ChatRoom = () => {
       }
     });
 
+    // 4. CALL LISTENER
     const callRef = ref(db, `calls/${roomId}`);
     const callListener = onValue(callRef, (snapshot) => {
         const data = snapshot.val();
         
+        // Incoming Call Check
         if (data && data.offer && !isInCall) {
             const offerData = JSON.parse(data.offer);
+            // Only show if it's NOT from me
             if (offerData.from !== myId) setIncomingCall(true);
         }
 
+        // Auto Hangup Check
         if (!data && isInCall) {
             setIsInCall(false);
             setIncomingCall(false);
@@ -125,10 +134,18 @@ const ChatRoom = () => {
     navigate('/lobby'); 
   };
 
-  const startCall = () => { setIsInitiator(true); setIsInCall(true); };
+  // 🟢 FIX: PREVENT GHOST DISCONNECT
+  const startCall = async () => { 
+      setIsInitiator(true); 
+      setIsInCall(true); 
+      // Mark status as dialing so listener doesn't auto-close
+      await set(ref(db, `calls/${roomId}/status`), "dialing"); 
+  };
+
   const acceptCall = () => { setIncomingCall(false); setIsInitiator(false); setIsInCall(true); };
   const declineCall = async () => { setIncomingCall(false); await remove(ref(db, `calls/${roomId}`)); };
 
+  // 🟢 LOG THE CALL DURATION
   const handleCallEnded = async (duration) => {
       setIsInCall(false);
       setIncomingCall(false);
@@ -171,6 +188,7 @@ const ChatRoom = () => {
         </div>
       )}
 
+      {/* 🟢 PASS CALLBACK TO VOICECALL */}
       {isInCall && (
         <VoiceCall 
             roomId={roomId} 
@@ -180,18 +198,18 @@ const ChatRoom = () => {
         />
       )}
 
-      {/* 🟢 FIXED: SPACIOUS INCOMING CALL POPUP */}
+      {/* 🟢 THE FIXED POPUP (NO OVERLAP) */}
       {incomingCall && !isInCall && (
          <div className="incoming-call-toast" style={styles.toast}>
             <div className="pulse-circle"></div>
-            <span style={{fontWeight:'bold', marginBottom:'10px', display:'block'}}>📞 Incoming Call...</span>
+            <span style={{fontWeight:'bold', marginBottom:'15px', display:'block', fontSize:'1.1rem'}}>
+                📞 Incoming Call...
+            </span>
             
-            <div className="call-actions" style={{display:'flex', gap:'15px', justifyContent:'center'}}>
-                {/* Accept Button */}
+            <div className="call-actions" style={{display:'flex', gap:'15px', justifyContent:'center', flexWrap:'wrap'}}>
                 <button onClick={acceptCall} style={{...styles.actionBtn, background:'#10b981'}}>
                     <FaCheck /> Accept
                 </button>
-                {/* Decline Button */}
                 <button onClick={declineCall} style={{...styles.actionBtn, background:'#ef4444'}}>
                     <FaTimes /> Decline
                 </button>
@@ -253,7 +271,7 @@ const ChatRoom = () => {
   );
 };
 
-// 🟢 IMPROVED STYLES
+// 🟢 STYLES WITH FIXED WIDTH AND SPACING
 const styles = {
     waitingOverlay: {
         position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
@@ -268,16 +286,17 @@ const styles = {
         background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', padding: '10px 20px',
         borderRadius: '20px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', transition: 'all 0.3s'
     },
-    // NEW TOAST STYLES
     toast: {
         position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.1)', 
-        backdropFilter: 'blur(10px)', padding: '15px', borderRadius: '15px', 
+        backdropFilter: 'blur(10px)', padding: '20px', borderRadius: '15px', 
         border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 5px 15px rgba(0,0,0,0.3)', zIndex: 100,
-        minWidth: '200px', textAlign: 'center'
+        minWidth: '300px', // ⬅️ THIS FIXES THE SQUISHED BUTTONS
+        textAlign: 'center' 
     },
     actionBtn: {
-        border: 'none', padding: '8px 15px', borderRadius: '20px', color: 'white', 
-        cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px'
+        border: 'none', padding: '10px 20px', borderRadius: '25px', color: 'white', 
+        cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px',
+        fontSize: '0.9rem', transition: 'transform 0.2s'
     }
 };
 
