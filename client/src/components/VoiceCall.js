@@ -36,7 +36,15 @@ const VoiceCall = ({ roomId, isInitiator, myId, onCallEnded }) => {
     let callRef = null;
     let callListener = null;
 
-    navigator.mediaDevices.getUserMedia({ video: false, audio: true }).then((currentStream) => {
+    // 🔥 FIX 1: Added echoCancellation and noiseSuppression
+    navigator.mediaDevices.getUserMedia({ 
+        video: false, 
+        audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: false 
+        } 
+    }).then((currentStream) => {
       setStream(currentStream);
       if (userVideo.current) userVideo.current.srcObject = currentStream;
 
@@ -52,17 +60,14 @@ const VoiceCall = ({ roomId, isInitiator, myId, onCallEnded }) => {
         set(ref(db, `calls/${roomId}/${path}`), JSON.stringify(payload));
       });
 
-      // 🟢 FIX 1: UPDATE STATUS ON STREAM
       peer.on('stream', (partnerStream) => {
         if (partnerVideo.current) partnerVideo.current.srcObject = partnerStream;
-        setCallStatus("Connected"); // Try setting it here
+        setCallStatus("Connected"); 
         const audio = new Audio();
         audio.srcObject = partnerStream;
         audio.play();
       });
 
-      // 🟢 FIX 2: FORCE UPDATE STATUS ON CONNECT (Double Check)
-      // This ensures that even if 'stream' lags, 'connect' will trigger the timer.
       peer.on('connect', () => {
         setCallStatus("Connected");
       });
@@ -82,6 +87,7 @@ const VoiceCall = ({ roomId, isInitiator, myId, onCallEnded }) => {
     });
 
     return () => {
+       // Cleanup logic
        if(stream) stream.getTracks().forEach(track => track.stop());
        if(peerRef.current) peerRef.current.destroy();
        if(callRef && callListener) off(callRef, callListener);
@@ -97,6 +103,11 @@ const VoiceCall = ({ roomId, isInitiator, myId, onCallEnded }) => {
   };
 
   const endCall = async () => {
+      
+      if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+      }
+      
       await remove(ref(db, `calls/${roomId}`)); 
       onCallEnded(formatTime(seconds)); 
   };
@@ -116,7 +127,6 @@ const VoiceCall = ({ roomId, isInitiator, myId, onCallEnded }) => {
         
         <h2 style={{marginBottom: '5px'}}>{callStatus}</h2>
         
-        {/* 🟢 TIMER DISPLAY */}
         {callStatus === "Connected" && (
             <div style={{
                 fontSize: '1.5rem', 

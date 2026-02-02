@@ -8,13 +8,19 @@ const LandingPage = () => {
   const navigate = useNavigate();
 
   const handleLogin = () => {
-    if (name.trim() && agreed) {
-      localStorage.setItem('chat_username', name);
-      navigate('/lobby');
-    } else if (!agreed) {
-      alert("Please agree to the Terms & Privacy Policy to continue.");
-    }
-  };
+    if (name.trim() && agreed) {
+      
+     
+      const uniqueId = `${name.trim()}_${Date.now().toString().slice(-5)}`;
+
+      localStorage.setItem('chat_username', name.trim());
+      localStorage.setItem('chat_userId', uniqueId); 
+
+      navigate('/lobby');
+    } else if (!agreed) {
+     alert("Please agree to the Terms & Privacy Policy to continue.");
+    }
+  };
 
   const showLegal = (type) => {
     if (type === "Privacy") {
