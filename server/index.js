@@ -109,7 +109,6 @@ app.delete('/api/chat-history/:username', async (req, res) => {
 });
 
 // 2. SETUP SOCKET.IO 🔌
-// 🟢 NUCLEAR FIX: Apply "*" here too
 const io = new Server(server, {
   cors: {
     origin: "*", // Allow anyone
@@ -123,11 +122,12 @@ let waitingUser = null;
 io.on("connection", (socket) => {
   console.log(`⚡: User Connected ${socket.id}`);
 
-  // 🔥 UPDATED JOIN LOGIC WITH ID CHECK
+  // 🔥 UPDATED JOIN LOGIC (Includes ID check + Auto Rename)
   socket.on("join_queue", (data) => {
-    const userName = data?.name || "Stranger";
-    // 🔥 FIX: Ab ID bhi receive kar rahe hain (agar frontend bhej raha hai)
-    // Agar purana frontend hai toh socket.id use karenge fallback ke liye
+    // Note: Used 'let' instead of 'const' so we can rename if needed
+    let userName = data?.name || "Stranger";
+    
+    // Ab ID bhi receive kar rahe hain
     const userId = data?.userId || socket.id; 
 
     // Case 1: Agar user pehle se wait kar raha hai (Refresh/Re-click kiya)
@@ -135,7 +135,7 @@ io.on("connection", (socket) => {
     
     // Case 2: Agar same User ID (Tab A) doosre Tab (Tab B) se connect karne ki koshish kare
     if (waitingUser && waitingUser.userId === userId) {
-        console.log("⚠️ Same user tried to connect with themselves. Waiting for someone else.");
+        // Same insaan hai -> Connect MAT karo
         return; 
     }
 
@@ -145,13 +145,22 @@ io.on("connection", (socket) => {
       const matchSocket = waitingUser.socket;
       const matchName = waitingUser.name;
       const matchSocketId = matchSocket.id; 
+
+      // 🔥 AUTO-RENAME LOGIC:
+      // Agar naye user ka naam same hai, toh "(2)" laga do
+      if (userName === matchName) {
+          userName = `${userName} (2)`;
+      }
       
       // Dono ko room mein daalo
       matchSocket.join(roomId);
       socket.join(roomId);
       
       // Notification bhejo
+      // Pehle user (WaitingUser) ko naye bande ka naam dikhao (Jo shayad rename hua ho)
       io.to(matchSocketId).emit("match_found", { roomId, partnerName: userName });
+      
+      // Naye user ko pehle wale ka naam dikhao
       io.to(socket.id).emit("match_found", { roomId, partnerName: matchName });
       
       waitingUser = null; // Queue reset
