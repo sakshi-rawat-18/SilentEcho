@@ -4,19 +4,17 @@ import { FaSpinner } from 'react-icons/fa';
 import io from 'socket.io-client';
 
 // 🟢 DEPLOYMENT CONFIGURATION
-// When you deploy your server to Render, paste that URL here!
-// Example: const BACKEND_URL = "https://silentecho-api.onrender.com";
 const BACKEND_URL = "https://silentecho-eypq.onrender.com"; 
-
-// Connect using the variable
 const socket = io.connect(BACKEND_URL);
 
 const WaitingRoom = () => {
   const navigate = useNavigate();
   const [factIndex, setFactIndex] = useState(0);
 
-  // 1. GET THE SAVED NAME (or default to Anonymous)
+  // 1. GET NAME AND UNIQUE ID
   const myName = localStorage.getItem("chat_username") || "Anonymous";
+  // 🔥 FIX: Unique ID uthao jo humne LandingPage me banayi thi
+  const myId = localStorage.getItem("chat_userId") || `user_${Date.now()}`;
 
   const facts = [
     "Did you know? Writing down your worries can reduce anxiety by 40%.",
@@ -27,21 +25,22 @@ const WaitingRoom = () => {
   ];
 
   useEffect(() => {
-    // 2. SEND NAME WHEN JOINING QUEUE
-    socket.emit("join_queue", { name: myName });
+    // 2. SEND NAME AND ID WHEN JOINING QUEUE
+    // 🔥 FIX: Ab hum server ko ID bhi bhejenge taaki wo confuse na ho
+    socket.emit("join_queue", { name: myName, userId: myId });
 
     // 3. LISTEN FOR A MATCH
     socket.on("match_found", (data) => {
-      // 4. RECEIVE PARTNER'S NAME & ROOM ID
       navigate('/chat', { 
         state: { 
             roomId: data.roomId,
-            partnerName: data.partnerName // Pass this to ChatRoom
+            partnerName: data.partnerName,
+            // 🔥 Pass myId too logic ke liye
+            myId: myId 
         } 
       });
     });
 
-    // Cycle facts
     const interval = setInterval(() => {
       setFactIndex((prev) => (prev + 1) % facts.length);
     }, 4000);
@@ -51,7 +50,7 @@ const WaitingRoom = () => {
         socket.off("match_found");
     };
     // eslint-disable-next-line
-  }, [navigate, myName]); // Added eslint disable to ignore 'facts.length' warning
+  }, [navigate, myName, myId]); 
 
   return (
     <div className="waiting-container glass-panel">

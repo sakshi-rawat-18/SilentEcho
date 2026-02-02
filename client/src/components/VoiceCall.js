@@ -36,7 +36,7 @@ const VoiceCall = ({ roomId, isInitiator, myId, onCallEnded }) => {
     let callRef = null;
     let callListener = null;
 
-    // 🔥 FIX 1: Added echoCancellation and noiseSuppression
+    // 🔥 FIX 1: Audio Quality Settings
     navigator.mediaDevices.getUserMedia({ 
         video: false, 
         audio: {
@@ -103,7 +103,7 @@ const VoiceCall = ({ roomId, isInitiator, myId, onCallEnded }) => {
   };
 
   const endCall = async () => {
-      
+      // 🔥 FIX 2: Mic ko turant band karna
       if (stream) {
           stream.getTracks().forEach(track => track.stop());
       }
@@ -143,7 +143,13 @@ const VoiceCall = ({ roomId, isInitiator, myId, onCallEnded }) => {
 
         <p style={{color: '#9ca3af', marginBottom: '40px'}}>{isMuted ? "You are muted" : "Speaking..."}</p>
         
-        <div className="call-controls" style={{display: 'flex', gap: '20px'}}>
+        {/* 🔥 FIX 3: Container par bhi Z-Index lagaya taaki click miss na ho */}
+        <div className="call-controls" style={{
+            display: 'flex', 
+            gap: '20px',
+            position: 'relative',
+            zIndex: 10001
+        }}>
             <button onClick={toggleMute} className={`icon-btn ${isMuted ? 'muted' : ''}`} style={btnStyle}>
                 {isMuted ? <FaMicrophoneSlash /> : <FaMicrophone />}
             </button>
@@ -157,10 +163,25 @@ const VoiceCall = ({ roomId, isInitiator, myId, onCallEnded }) => {
   );
 };
 
+// 🔥 FIX 3 (Part 2): Button Styles Updated
 const btnStyle = {
-    padding: '20px', borderRadius: '50%', border: 'none', background: '#374151', color: 'white',
-    fontSize: '1.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    width: '70px', height: '70px', transition: 'all 0.2s'
+    padding: '20px', 
+    borderRadius: '50%', 
+    border: 'none', 
+    background: '#374151', 
+    color: 'white',
+    fontSize: '1.5rem', 
+    cursor: 'pointer', 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    width: '70px', 
+    height: '70px', 
+    transition: 'all 0.2s',
+    
+    // Z-Index yahan bhi hai
+    position: 'relative',
+    zIndex: 10002 
 };
 
 export default VoiceCall;
