@@ -123,26 +123,46 @@ let waitingUser = null;
 io.on("connection", (socket) => {
   console.log(`⚡: User Connected ${socket.id}`);
 
+  // 🔥 UPDATED JOIN LOGIC WITH ID CHECK
   socket.on("join_queue", (data) => {
-    const userName = data?.name || "Stranger"; 
+    const userName = data?.name || "Stranger";
+    // 🔥 FIX: Ab ID bhi receive kar rahe hain (agar frontend bhej raha hai)
+    // Agar purana frontend hai toh socket.id use karenge fallback ke liye
+    const userId = data?.userId || socket.id; 
+
+    // Case 1: Agar user pehle se wait kar raha hai (Refresh/Re-click kiya)
     if (waitingUser && waitingUser.socket.id === socket.id) return;
+    
+    // Case 2: Agar same User ID (Tab A) doosre Tab (Tab B) se connect karne ki koshish kare
+    if (waitingUser && waitingUser.userId === userId) {
+        console.log("⚠️ Same user tried to connect with themselves. Waiting for someone else.");
+        return; 
+    }
 
     if (waitingUser) {
+      // ✅ MATCH FOUND
       const roomId = uuidv4();
       const matchSocket = waitingUser.socket;
       const matchName = waitingUser.name;
       const matchSocketId = matchSocket.id; 
       
+      // Dono ko room mein daalo
       matchSocket.join(roomId);
       socket.join(roomId);
       
+      // Notification bhejo
       io.to(matchSocketId).emit("match_found", { roomId, partnerName: userName });
       io.to(socket.id).emit("match_found", { roomId, partnerName: matchName });
       
-      waitingUser = null; 
+      waitingUser = null; // Queue reset
     } else {
-      waitingUser = { socket: socket, name: userName };
-      console.log(`⏳ User ${userName} is waiting...`);
+      // ⏳ NO ONE WAITING -> ADD TO QUEUE
+      waitingUser = { 
+          socket: socket, 
+          name: userName,
+          userId: userId // Store ID for safety check
+      };
+      console.log(`⏳ User ${userName} (ID: ${userId}) is waiting...`);
     }
   });
 
