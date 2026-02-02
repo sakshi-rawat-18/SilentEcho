@@ -83,7 +83,7 @@ app.post('/api/ai-chat', async (req, res) => {
     await botMsg.save();
     res.json({ reply: botReply });
   } catch (error) {
-    console.error("❌ AI Error:", error);
+    console.error(" AI Error:", error);
     res.status(500).json({ reply: "I'm having a little trouble thinking. Ask me again? 💜" });
   }
 });
